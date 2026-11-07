@@ -1,0 +1,18 @@
+# Progress
+
+- Iniciada a implementação do front-end World Pixel.
+- Prompt completo lido e arquitetura inicial definida.
+- Planejamento persistente criado.
+- Fundação Next.js, contratos tipados, grade e adaptador mock implementados.
+- Mapa MapLibre, layers de pixels/proteções, pintura otimista, login, carteira e compra simulada implementados.
+- Interface responsiva, modais, toasts e testes iniciais adicionados.
+- Dependências instaladas sem vulnerabilidades; 5 testes passaram.
+- Primeiro typecheck encontrou incompatibilidade de import do MapLibre v6; correção aplicada.
+- Typecheck final passou sem erros e build de produção foi concluído.
+- Servidor local respondeu HTTP 200; ferramenta de navegador não estava disponível para inspeção visual automatizada.
+- README e `.env.example` finalizados para handoff e futura integração Supabase.
+- Iniciada a Phase 5 para internacionalização em português, inglês e espanhol.
+- Catálogos tipados, provider React, detecção automática e persistência do idioma implementados.
+- Todos os textos visíveis, acessibilidade, erros e moeda foram conectados ao sistema de tradução.
+- Seletor de idioma responsivo adicionado ao header.
+- Typecheck passou, 8 testes passaram e build de produção foi concluído.

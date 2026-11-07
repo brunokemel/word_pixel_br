@@ -1,0 +1,106 @@
+Você é um engenheiro front-end sênior. Trabalhe diretamente no repositório atual e construa o front-end de um produto chamado provisoriamente “World Pixel”, um mapa-múndi colaborativo no qual visitantes podem dar zoom, navegar e pintar pixels somente em áreas terrestres. Pixels não protegidos podem ser repintados por outras pessoas. Usuários autenticados poderão selecionar um bloco e protegê-lo por 30 dias usando créditos adquiridos por pagamento.
+
+Antes de alterar arquivos:
+
+1. Inspecione todo o repositório, package.json, configurações, componentes e padrões existentes.
+2. Preserve a stack e o estilo existentes quando houver um projeto iniciado.
+3. Se o repositório estiver vazio, inicialize uma aplicação moderna com Next.js, TypeScript, Tailwind CSS e uma organização clara por features. Use MapLibre GL JS para o mapa.
+4. Não implemente banco ou API real neste prompt. Crie uma camada de serviços tipada e substituível, com dados simulados apenas onde for necessário para o front funcionar.
+5. Não coloque chaves privadas no navegador. Variáveis públicas devem usar o mecanismo de ambiente da stack.
+
+Objetivo da experiência
+
+O mapa é o produto principal e deve ocupar quase toda a tela. A experiência deve lembrar uma mistura de mapa interativo, canvas colaborativo e jogo social. O visual deve ser moderno, limpo, divertido e funcionar bem no desktop e no celular, sem parecer um dashboard corporativo genérico.
+
+Funcionalidades obrigatórias
+
+- Mapa-múndi interativo com arrastar, zoom, controles e suporte a toque.
+- Camada visual de pixels/blocos alinhada a uma grade geográfica consistente.
+- Permitir pintura somente em células consideradas terrestres. Para o protótipo, isole a validação em um serviço `isLandCell`; não espalhe regras simuladas pelos componentes.
+- Ao clicar/tocar em uma célula válida, mostrar coordenadas, cor atual, proprietário/protetor quando houver e tempo restante de proteção.
+- Paleta de cores acessível, com cor selecionada evidente.
+- Modos “Pintar”, “Navegar” e “Proteger área”, evitando que o usuário pinte acidentalmente ao mover o mapa.
+- Pintura otimista com rollback e mensagem de erro quando a API rejeitar.
+- Áreas protegidas devem ter uma indicação visual discreta e um cadeado. Ninguém além do usuário autorizado poderá iniciar a pintura nelas.
+- Seleção de um bloco de 16×16 células para proteção. Mostre contorno, preço, duração de 30 dias e resumo antes da confirmação.
+- Header compacto com marca, saldo de créditos, botão de login/perfil e acesso às instruções.
+- Modal de login/cadastro preparado para Supabase Auth, mas desacoplado da implementação real.
+- Modal de compra/proteção com estados: revisão, aguardando pagamento, confirmado, expirado e erro.
+- Painel ou popover de instruções com regras simples do projeto.
+- Toasts acessíveis para sucesso, erro e bloqueio.
+- Estados de carregamento, reconexão e indisponibilidade do Realtime.
+- Interface responsiva. No celular, ferramentas devem ficar em uma barra inferior e não cobrir excessivamente o mapa.
+- Navegação por teclado, foco visível, aria-labels e contraste adequado.
+
+Arquitetura do front-end
+
+Crie tipos e interfaces explícitos para pelo menos:
+
+- `GridCell`
+- `PixelChunk`
+- `PixelChange`
+- `ProtectedArea`
+- `UserProfile`
+- `WalletBalance`
+- `ProtectionQuote`
+- `RealtimeEvent`
+- `ApiError`
+
+Crie uma interface central de serviços, por exemplo `WorldPixelApi`, contendo operações equivalentes a:
+
+- buscar chunks visíveis pelo bounding box e nível de zoom;
+- pintar uma célula com uma chave idempotente;
+- solicitar orçamento para proteger uma área;
+- iniciar a compra/proteção;
+- consultar status da compra;
+- consultar saldo;
+- obter sessão/perfil;
+- assinar eventos Realtime por região/chunk;
+- cancelar assinaturas ao sair da região.
+
+Implemente um adaptador mock para permitir testar toda a interface sem back-end. A UI não deve acessar `fetch`, Supabase ou dados simulados diretamente dentro dos componentes. Centralize isso na camada de serviços.
+
+Renderização e desempenho
+
+- Não crie um elemento DOM por pixel em grandes quantidades.
+- Use Canvas 2D, WebGL ou uma source/layer eficiente do MapLibre para renderizar os chunks.
+- Busque/renderize somente chunks dentro ou próximos da viewport.
+- Faça debounce das mudanças rápidas de viewport.
+- Cacheie chunks já carregados e invalide-os por eventos Realtime.
+- Agrupe atualizações quando muitos pixels mudarem.
+- Em zoom distante, renderize uma visão agregada; só permita pintar após um nível mínimo de zoom.
+- Mantenha interações fluidas mesmo com milhares de células visíveis.
+
+Contratos esperados do back-end
+
+Use estas rotas conceituais, mantendo os caminhos configuráveis para adaptação posterior:
+
+- `GET /map/chunks?bbox=...&zoom=...`
+- `POST /pixels/paint`
+- `POST /protections/quote`
+- `POST /protections/checkout`
+- `GET /protections/:id`
+- `GET /wallet`
+- canal Realtime particionado por `chunk:{x}:{y}` ou região equivalente.
+
+Toda mutação deve suportar autenticação e erros estruturados como `UNAUTHENTICATED`, `RATE_LIMITED`, `CELL_NOT_LAND`, `AREA_PROTECTED`, `INSUFFICIENT_CREDITS`, `CONFLICT` e `VALIDATION_ERROR`.
+
+Design sugerido
+
+- Fundo escuro ou azul profundo com mapa elegante e cores dos pixels vibrantes.
+- Grade quase invisível em zoom médio e nítida no zoom de pintura.
+- Tipografia legível e controles arredondados, compactos e táteis.
+- Evite excesso de cards, gradientes aleatórios e textos genéricos.
+- Use textos reais em português do Brasil.
+- Nome e identidade devem ficar fáceis de trocar posteriormente.
+
+Qualidade e validação
+
+- Crie componentes pequenos, testáveis e bem nomeados.
+- Evite `any` e duplicação de estado.
+- Trate cleanup das inscrições Realtime.
+- Adicione testes para conversão coordenada↔célula, seleção 16×16, bloqueio de área protegida e rollback de pintura.
+- Execute typecheck, testes e build.
+- Corrija os problemas encontrados.
+- Entregue um README curto com instalação, variáveis de ambiente, comandos, arquitetura e pontos exatos para integrar a API real.
+- Ao terminar, informe arquivos criados/alterados, decisões tomadas, comandos de validação executados e qualquer pendência real. Não apenas descreva código: implemente-o.
