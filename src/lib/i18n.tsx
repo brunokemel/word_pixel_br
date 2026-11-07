@@ -28,6 +28,7 @@ const pt = {
   "map.loading": "Carregando o mundo…",
   "map.zoomPaint": "Aproxime mais para pintar",
   "map.zoomProtect": "Aproxime mais para proteger",
+  "map.protectHint": "Segure Ctrl + botão esquerdo e arraste · máximo 256 pixels",
   "hero.eyebrow": "UM MAPA · MILHÕES DE HISTÓRIAS",
   "hero.titleStart": "Deixe sua marca",
   "hero.titleEnd": "no mundo.",
@@ -106,7 +107,7 @@ type Catalog = Record<TranslationKey, string>;
 const en: Catalog = {
   "language.label": "Language", "header.live": "LIVE", "header.help": "How it works", "header.balance": "balance", "header.logout": "Log out", "header.login": "Log in",
   "tools.label": "Map tools", "tools.navigate": "Explore", "tools.paint": "Paint", "tools.protect": "Protect", "palette.label": "Color palette", "palette.select": "Select color {color}",
-  "map.label": "Interactive world pixel map", "map.loading": "Loading the world…", "map.zoomPaint": "Zoom in to paint", "map.zoomProtect": "Zoom in to protect",
+  "map.label": "Interactive world pixel map", "map.loading": "Loading the world…", "map.zoomPaint": "Zoom in to paint", "map.zoomProtect": "Zoom in to protect", "map.protectHint": "Hold Ctrl + left button and drag · maximum 256 pixels",
   "hero.eyebrow": "ONE MAP · MILLIONS OF STORIES", "hero.titleStart": "Leave your mark", "hero.titleEnd": "on the world.", "hero.description": "Zoom in, choose a color and turn one pixel into part of something huge.",
   "legend.free": "available", "legend.protected": "protected", "connection.reconnecting": "Reconnecting to the map…",
   "cell.label": "Pixel details", "cell.close": "Close details", "cell.selected": "SELECTED PIXEL", "cell.lastPaint": "Last painted", "cell.unpainted": "Not painted yet", "cell.coordinate": "Coordinates", "cell.protectedBy": "Protected by", "cell.daysRemaining": "{days} days remaining",
@@ -120,7 +121,7 @@ const en: Catalog = {
 const es: Catalog = {
   "language.label": "Idioma", "header.live": "EN VIVO", "header.help": "Cómo funciona", "header.balance": "saldo", "header.logout": "Salir", "header.login": "Entrar",
   "tools.label": "Herramientas del mapa", "tools.navigate": "Explorar", "tools.paint": "Pintar", "tools.protect": "Proteger", "palette.label": "Paleta de colores", "palette.select": "Seleccionar color {color}",
-  "map.label": "Mapamundi interactivo de píxeles", "map.loading": "Cargando el mundo…", "map.zoomPaint": "Acércate para pintar", "map.zoomProtect": "Acércate para proteger",
+  "map.label": "Mapamundi interactivo de píxeles", "map.loading": "Cargando el mundo…", "map.zoomPaint": "Acércate para pintar", "map.zoomProtect": "Acércate para proteger", "map.protectHint": "Mantén Ctrl + botón izquierdo y arrastra · máximo 256 píxeles",
   "hero.eyebrow": "UN MAPA · MILLONES DE HISTORIAS", "hero.titleStart": "Deja tu huella", "hero.titleEnd": "en el mundo.", "hero.description": "Acércate, elige un color y convierte un píxel en parte de algo enorme.",
   "legend.free": "libre", "legend.protected": "protegido", "connection.reconnecting": "Reconectando al mapa…",
   "cell.label": "Detalles del píxel", "cell.close": "Cerrar detalles", "cell.selected": "PÍXEL SELECCIONADO", "cell.lastPaint": "Última pintura", "cell.unpainted": "Aún sin pintar", "cell.coordinate": "Coordenadas", "cell.protectedBy": "Protegido por", "cell.daysRemaining": "{days} días restantes",

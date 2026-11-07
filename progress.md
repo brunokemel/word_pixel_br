@@ -20,3 +20,4 @@
 - Contratos, cotação, seleção por arraste, prévia e confirmação dinâmica implementados.
 - Typecheck passou, 13 testes passaram e o build de produção foi concluído.
 - Push automático bloqueado pela política do ambiente; preparação de commit local iniciada separadamente.
+- Seleção de proteção alterada para Ctrl + botão esquerdo + arrastar; navegação comum permanece disponível e o limite continua em 256 pixels.

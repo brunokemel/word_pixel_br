@@ -229,8 +229,14 @@ export function MapBoard({
     };
 
     map.on("mousedown", (event: MapMouseEvent) => {
-      if (modeRef.current === "protect" && map.getZoom() >= MIN_PAINT_ZOOM) {
+      if (
+        modeRef.current === "protect" &&
+        map.getZoom() >= MIN_PAINT_ZOOM &&
+        event.originalEvent.button === 0 &&
+        event.originalEvent.ctrlKey
+      ) {
         event.preventDefault();
+        map.dragPan.disable();
         protectionStart = lngLatToCell(event.lngLat.lng, event.lngLat.lat);
         handlersRef.current.onProtectPreview(createProtectionSelection(protectionStart, protectionStart));
         return;
@@ -249,6 +255,7 @@ export function MapBoard({
         handlersRef.current.onProtectSelect(selection);
       }
       protectionStart = null;
+      if (modeRef.current === "protect") map.dragPan.enable();
       painting = false;
       lastPaintCell = null;
       paintedInStroke.clear();
@@ -275,7 +282,7 @@ export function MapBoard({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (mode === "paint" || mode === "protect") map.dragPan.disable();
+    if (mode === "paint") map.dragPan.disable();
     else map.dragPan.enable();
   }, [mode]);
 
@@ -290,6 +297,9 @@ export function MapBoard({
       {loading && <div className="map-status"><span className="spinner" /> {t("map.loading")}</div>}
       {zoom < MIN_PAINT_ZOOM && mode !== "navigate" && (
         <div className="zoom-hint">{mode === "paint" ? t("map.zoomPaint") : t("map.zoomProtect")}</div>
+      )}
+      {mode === "protect" && zoom >= MIN_PAINT_ZOOM && (
+        <div className="zoom-hint">{t("map.protectHint")}</div>
       )}
       {cursorCell && zoom >= MIN_PAINT_ZOOM && (
         <div className="coordinates" aria-hidden="true">{cursorCell.x}, {cursorCell.y}</div>
