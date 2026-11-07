@@ -16,3 +16,7 @@
 - Todos os textos visíveis, acessibilidade, erros e moeda foram conectados ao sistema de tradução.
 - Seletor de idioma responsivo adicionado ao header.
 - Typecheck passou, 8 testes passaram e build de produção foi concluído.
+- Iniciada a Phase 6: compra de área retangular selecionável por arraste, limitada a 256 pixels.
+- Contratos, cotação, seleção por arraste, prévia e confirmação dinâmica implementados.
+- Typecheck passou, 13 testes passaram e o build de produção foi concluído.
+- Push automático bloqueado pela política do ambiente; preparação de commit local iniciada separadamente.

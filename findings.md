@@ -10,3 +10,7 @@
 - Um catálogo local com chaves estáveis cobre o escopo atual sem alterar rotas ou adicionar dependências.
 - A tipagem `Catalog = Record<TranslationKey, string>` garante em compilação que inglês e espanhol tenham todas as chaves do português.
 - A escolha de idioma fica em `localStorage` e o atributo `lang` do documento acompanha a seleção.
+- A proteção atual alinha a seleção automaticamente em blocos fixos 16×16 e a cotação recebe apenas uma célula.
+- Para seleção livre, `ProtectionQuote` e `quoteProtection` precisam transportar origem, largura e altura; o limite inicial será 256 pixels.
+- A seleção por arraste usa um retângulo proporcional limitado automaticamente a 256 pixels; o mock cobra R$ 0,01 por pixel.
+- A cotação rejeita áreas que cruzam o oceano ou se sobrepõem a uma proteção ativa.

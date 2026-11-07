@@ -4,7 +4,7 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Entregar o esquema trilíngue concluído e documentado.
+Entregar a seleção retangular validada e documentar como testar.
 
 ## Current Phase
 Concluído.
@@ -37,6 +37,13 @@ Concluído.
 - [x] Adicionar seletor persistente de idioma
 - [x] Testar troca de idioma, typecheck e build
 
+### Phase 6 — Compra de área selecionável
+**Status:** complete
+- [x] Generalizar contratos, cotação e preço para retângulos de até 256 pixels
+- [x] Implementar seleção por arraste e prévia visual no mapa
+- [x] Exibir dimensões, quantidade de pixels e preço na confirmação
+- [x] Validar conflitos, limite, typecheck, testes e build
+
 ## Decisions Made
 | Decision | Rationale |
 |---|---|
@@ -44,6 +51,7 @@ Concluído.
 | Adaptador mock em memória | Permite experiência completa sem acoplar o front à API ainda inexistente |
 | GeoJSON em layers do MapLibre | Evita um elemento DOM por pixel e mantém interação acoplada ao mapa |
 | Catálogo local tipado com React Context | Evita dependência adicional e deixa a futura migração para rotas localizadas opcional |
+| Limite inicial de 256 pixels por compra | Preserva o teto econômico do bloco 16×16 atual, permitindo formatos retangulares livres |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -51,3 +59,5 @@ Concluído.
 | `git diff --stat` falhou porque o diretório ainda não é um repositório Git | 1 | Registrado; validação continuará por arquivos e comandos do projeto |
 | Typecheck: MapLibre v6 não possui export default e eventos perderam inferência | 1 | Alterado para import namespace e tipos explícitos de `MapMouseEvent` |
 | Prévia visual não pôde abrir porque nenhum navegador estava disponível no ambiente | 1 | Confirmada resposta HTTP 200; limitação registrada para o handoff |
+| `npm run check` não existe no frontend | 1 | Executados separadamente `npm run typecheck`, `npm test` e `npm run build` |
+| Comando combinado de commit e `git push` foi bloqueado pela política do ambiente | 1 | Nenhuma etapa executou; commit local será feito separadamente e o push ficará para o terminal do usuário |

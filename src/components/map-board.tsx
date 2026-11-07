@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
-import { cellToBounds, lngLatToCell, MIN_PAINT_ZOOM, visibleChunkIds } from "@/lib/grid";
-import type { GridCell, MapBounds, ProtectedArea, ToolMode } from "@/lib/types";
+import { cellToBounds, createProtectionSelection, interpolateCellLine, lngLatToCell, MIN_PAINT_ZOOM, visibleChunkIds } from "@/lib/grid";
+import type { GridCell, MapBounds, ProtectedArea, ProtectionSelection, ToolMode } from "@/lib/types";
 import { worldPixelApi } from "@/lib/mock-api";
 import { useI18n } from "@/lib/i18n";
+
+maplibregl.setWorkerUrl(
+  new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString(),
+);
 
 type PolygonFeature = {
   type: "Feature";
@@ -23,7 +27,8 @@ interface MapBoardProps {
   selectedCell: GridCell | null;
   onCellSelect: (cell: GridCell) => void;
   onPaint: (cell: GridCell) => void;
-  onProtectSelect: (cell: GridCell) => void;
+  onProtectPreview: (selection: ProtectionSelection | null) => void;
+  onProtectSelect: (selection: ProtectionSelection) => void;
   onChunksLoaded: (cells: GridCell[]) => void;
   onConnectionChange: (connected: boolean) => void;
 }
@@ -51,7 +56,7 @@ function getMapBounds(map: MapLibreMap): MapBounds {
 }
 
 export function MapBoard({
-  mode, cells, protectedAreas, selectedCell, onCellSelect, onPaint, onProtectSelect,
+  mode, cells, protectedAreas, selectedCell, onCellSelect, onPaint, onProtectPreview, onProtectSelect,
   onChunksLoaded, onConnectionChange,
 }: MapBoardProps) {
   const { t } = useI18n();
@@ -60,7 +65,7 @@ export function MapBoard({
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const cellsRef = useRef(cells);
   const modeRef = useRef(mode);
-  const handlersRef = useRef({ onCellSelect, onPaint, onProtectSelect, onChunksLoaded, onConnectionChange });
+  const handlersRef = useRef({ onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange });
   const [zoom, setZoom] = useState(3.2);
   const [loading, setLoading] = useState(true);
   const [cursorCell, setCursorCell] = useState<GridCell | null>(null);
@@ -68,8 +73,8 @@ export function MapBoard({
   useEffect(() => { cellsRef.current = cells; }, [cells]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => {
-    handlersRef.current = { onCellSelect, onPaint, onProtectSelect, onChunksLoaded, onConnectionChange };
-  }, [onCellSelect, onPaint, onProtectSelect, onChunksLoaded, onConnectionChange]);
+    handlersRef.current = { onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange };
+  }, [onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange]);
 
   const pixelData = useMemo<PolygonCollection>(() => ({
     type: "FeatureCollection",
@@ -123,14 +128,25 @@ export function MapBoard({
         sources: {
           base: {
             type: "raster",
-            tiles: ["https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png"],
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
             tileSize: 256,
-            attribution: "© OpenStreetMap © CARTO",
+            attribution: "© OpenStreetMap contributors",
           },
         },
         layers: [
           { id: "background", type: "background", paint: { "background-color": "#07111f" } },
-          { id: "base", type: "raster", source: "base", paint: { "raster-opacity": 0.92, "raster-saturation": -0.25 } },
+          {
+            id: "base",
+            type: "raster",
+            source: "base",
+            paint: {
+              "raster-opacity": 0.9,
+              "raster-saturation": -0.75,
+              "raster-brightness-min": 0.08,
+              "raster-brightness-max": 0.42,
+              "raster-contrast": 0.2,
+            },
+          },
         ],
       },
     });
@@ -140,7 +156,30 @@ export function MapBoard({
 
     map.on("load", () => {
       map.addSource("pixels", { type: "geojson", data: EMPTY_COLLECTION });
+      map.addLayer({
+        id: "pixel-relief-shadow",
+        type: "fill",
+        source: "pixels",
+        paint: {
+          "fill-color": "#02050a",
+          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.18, 6, 0.48],
+          "fill-translate": [2.5, 3.5],
+          "fill-translate-anchor": "viewport",
+        },
+      });
       map.addLayer({ id: "pixel-fill", type: "fill", source: "pixels", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.7, 6, 0.94] } });
+      map.addLayer({
+        id: "pixel-relief-highlight",
+        type: "line",
+        source: "pixels",
+        paint: {
+          "line-color": "rgba(255,255,255,.72)",
+          "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0, 6, 0.62],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.35, 9, 1.15],
+          "line-translate": [-0.7, -0.7],
+          "line-translate-anchor": "viewport",
+        },
+      });
       map.addLayer({ id: "pixel-grid", type: "line", source: "pixels", minzoom: 4.5, paint: { "line-color": "rgba(7,17,31,.55)", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.3, 9, 1] } });
       map.addSource("protections", { type: "geojson", data: EMPTY_COLLECTION });
       map.addLayer({ id: "protection-fill", type: "fill", source: "protections", paint: { "fill-color": "#ffc857", "fill-opacity": 0.08 } });
@@ -159,15 +198,71 @@ export function MapBoard({
     map.on("mousemove", (event: MapMouseEvent) => {
       const base = lngLatToCell(event.lngLat.lng, event.lngLat.lat);
       setCursorCell({ ...base, color: cellsRef.current.get(`${base.x}:${base.y}`)?.color ?? "#18283b" });
+      if (painting) paintTowards(base);
+      if (protectionStart) handlersRef.current.onProtectPreview(createProtectionSelection(protectionStart, base));
+    });
+    let painting = false;
+    let lastPaintCell: Pick<GridCell, "x" | "y"> | null = null;
+    let paintedInStroke = new Set<string>();
+    let protectionStart: Pick<GridCell, "x" | "y"> | null = null;
+
+    const paintTowards = (target: Pick<GridCell, "x" | "y">) => {
+      if (map.getZoom() < MIN_PAINT_ZOOM) return;
+      const path = lastPaintCell ? interpolateCellLine(lastPaintCell, target) : [target];
+      lastPaintCell = target;
+      for (const point of path) {
+        const key = `${point.x}:${point.y}`;
+        if (paintedInStroke.has(key) || !worldPixelApi.isLandCell(point.x, point.y)) continue;
+        paintedInStroke.add(key);
+        const existing = cellsRef.current.get(key);
+        const bounds = cellToBounds(point.x, point.y);
+        const cell: GridCell = existing ?? {
+          x: point.x,
+          y: point.y,
+          lng: bounds.west,
+          lat: bounds.north,
+          color: "#18283b",
+        };
+        handlersRef.current.onCellSelect(cell);
+        handlersRef.current.onPaint(cell);
+      }
+    };
+
+    map.on("mousedown", (event: MapMouseEvent) => {
+      if (modeRef.current === "protect" && map.getZoom() >= MIN_PAINT_ZOOM) {
+        event.preventDefault();
+        protectionStart = lngLatToCell(event.lngLat.lng, event.lngLat.lat);
+        handlersRef.current.onProtectPreview(createProtectionSelection(protectionStart, protectionStart));
+        return;
+      }
+      if (modeRef.current !== "paint") return;
+      event.preventDefault();
+      painting = true;
+      lastPaintCell = null;
+      paintedInStroke = new Set();
+      paintTowards(lngLatToCell(event.lngLat.lng, event.lngLat.lat));
+    });
+    const finishInteraction = (event?: MapMouseEvent) => {
+      if (protectionStart && event) {
+        const selection = createProtectionSelection(protectionStart, lngLatToCell(event.lngLat.lng, event.lngLat.lat));
+        handlersRef.current.onProtectPreview(selection);
+        handlersRef.current.onProtectSelect(selection);
+      }
+      protectionStart = null;
+      painting = false;
+      lastPaintCell = null;
+      paintedInStroke.clear();
+    };
+    map.on("mouseup", finishInteraction);
+    map.on("mouseout", () => {
+      protectionStart = null;
+      finishInteraction();
     });
     map.on("click", (event: MapMouseEvent) => {
       const base = lngLatToCell(event.lngLat.lng, event.lngLat.lat);
       const existing = cellsRef.current.get(`${base.x}:${base.y}`);
       const cell: GridCell = existing ?? { ...base, color: "#18283b" };
       handlersRef.current.onCellSelect(cell);
-      if (map.getZoom() < MIN_PAINT_ZOOM || !worldPixelApi.isLandCell(cell.x, cell.y)) return;
-      if (modeRef.current === "paint") handlersRef.current.onPaint(cell);
-      if (modeRef.current === "protect") handlersRef.current.onProtectSelect(cell);
     });
     return () => {
       clearTimeout(debounce);
@@ -176,6 +271,13 @@ export function MapBoard({
       mapRef.current = null;
     };
   }, [loadViewport]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (mode === "paint" || mode === "protect") map.dragPan.disable();
+    else map.dragPan.enable();
+  }, [mode]);
 
   useEffect(() => { (mapRef.current?.getSource("pixels") as GeoJSONSource | undefined)?.setData(pixelData); }, [pixelData]);
   useEffect(() => { (mapRef.current?.getSource("protections") as GeoJSONSource | undefined)?.setData(protectionData); }, [protectionData]);

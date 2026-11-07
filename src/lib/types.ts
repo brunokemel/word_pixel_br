@@ -39,6 +39,14 @@ export interface ProtectedArea {
   expiresAt: string;
 }
 
+export interface ProtectionSelection {
+  originX: number;
+  originY: number;
+  width: number;
+  height: number;
+  pixelCount: number;
+}
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -54,8 +62,9 @@ export interface ProtectionQuote {
   id: string;
   originX: number;
   originY: number;
-  width: 16;
-  height: 16;
+  width: number;
+  height: number;
+  pixelCount: number;
   priceInCents: number;
   durationDays: 30;
   validUntil: string;
@@ -97,7 +106,7 @@ export type Unsubscribe = () => void;
 export interface WorldPixelApi {
   getVisibleChunks(bounds: MapBounds, zoom: number): Promise<PixelChunk[]>;
   paintPixel(change: PixelChange): Promise<GridCell>;
-  quoteProtection(originX: number, originY: number): Promise<ProtectionQuote>;
+  quoteProtection(selection: ProtectionSelection): Promise<ProtectionQuote>;
   purchaseProtection(quoteId: string): Promise<ProtectedArea>;
   getProtection(id: string): Promise<ProtectedArea | null>;
   getWallet(): Promise<WalletBalance>;

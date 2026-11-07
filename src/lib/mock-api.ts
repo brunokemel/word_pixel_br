@@ -1,10 +1,11 @@
-import { alignProtectionOrigin, cellToBounds, CHUNK_SIZE, getChunkId, isInsideProtection } from "./grid";
+import { cellToBounds, CHUNK_SIZE, getChunkId, isInsideProtection, MAX_PROTECTION_PIXELS, protectionAreasOverlap } from "./grid";
 import type {
   GridCell,
   MapBounds,
   PixelChange,
   PixelChunk,
   ProtectedArea,
+  ProtectionSelection,
   ProtectionQuote,
   RealtimeEvent,
   UserProfile,
@@ -95,15 +96,24 @@ export class MockWorldPixelApi implements WorldPixelApi {
     return authoritative;
   }
 
-  async quoteProtection(x: number, y: number): Promise<ProtectionQuote> {
+  async quoteProtection(selection: ProtectionSelection): Promise<ProtectionQuote> {
     await sleep(140);
     if (!this.profile) throw new ApiError("UNAUTHENTICATED", "Entre para proteger uma área.");
-    const { originX, originY } = alignProtectionOrigin(x, y);
-    const conflict = this.protections.some((area) => isInsideProtection({ x: originX, y: originY }, area));
+    const { originX, originY, width, height, pixelCount } = selection;
+    if (width < 1 || height < 1 || pixelCount !== width * height || pixelCount > MAX_PROTECTION_PIXELS) {
+      throw new ApiError("VALIDATION_ERROR", `Selecione entre 1 e ${MAX_PROTECTION_PIXELS} pixels.`);
+    }
+    for (let x = originX; x < originX + width; x++) {
+      for (let y = originY; y < originY + height; y++) {
+        if (!this.isLandCell(x, y)) throw new ApiError("CELL_NOT_LAND", "A área selecionada deve ficar inteiramente em terra.");
+      }
+    }
+    const candidate = { originX, originY, width, height };
+    const conflict = this.protections.some((area) => area.status === "active" && protectionAreasOverlap(candidate, area));
     if (conflict) throw new ApiError("CONFLICT", "Este bloco já está protegido.");
     const quote: ProtectionQuote = {
-      id: crypto.randomUUID(), originX, originY, width: 16, height: 16,
-      priceInCents: 100, durationDays: 30, validUntil: new Date(Date.now() + 10 * 60000).toISOString(),
+      id: crypto.randomUUID(), originX, originY, width, height, pixelCount,
+      priceInCents: pixelCount, durationDays: 30, validUntil: new Date(Date.now() + 10 * 60000).toISOString(),
     };
     this.quotes.set(quote.id, quote);
     return quote;

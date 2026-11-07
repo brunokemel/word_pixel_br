@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudOff, LockKeyhole } from "lucide-react";
-import { alignProtectionOrigin } from "@/lib/grid";
 import { worldPixelApi } from "@/lib/mock-api";
-import { ApiError, type GridCell, type ProtectedArea, type ProtectionQuote, type ToolMode, type UserProfile } from "@/lib/types";
+import { ApiError, type GridCell, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type ToolMode, type UserProfile } from "@/lib/types";
 import { MapBoard } from "./map-board";
 import { CellCard, Header, HelpModal, LoginModal, ProtectionModal, ToolDock } from "./ui";
 import { type TranslationKey, useI18n } from "@/lib/i18n";
@@ -20,6 +19,7 @@ export function WorldPixelApp() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [balance, setBalance] = useState(500);
   const [protectedAreas, setProtectedAreas] = useState<ProtectedArea[]>([]);
+  const [protectionDraft, setProtectionDraft] = useState<ProtectionSelection | null>(null);
   const [quote, setQuote] = useState<ProtectionQuote | null>(null);
   const [purchaseStatus, setPurchaseStatus] = useState<"review" | "pending" | "confirmed" | "error">("review");
   const [loginOpen, setLoginOpen] = useState(false);
@@ -66,10 +66,10 @@ export function WorldPixelApp() {
     }
   }, [cells, color, mergeCells, profile, t, toast]);
 
-  const handleProtect = useCallback(async (cell: GridCell) => {
+  const handleProtect = useCallback(async (selection: ProtectionSelection) => {
     if (!profile) { setLoginOpen(true); toast(t("toast.loginToProtect"), "info"); return; }
     try {
-      const nextQuote = await worldPixelApi.quoteProtection(cell.x, cell.y);
+      const nextQuote = await worldPixelApi.quoteProtection(selection);
       setQuote(nextQuote); setPurchaseStatus("review");
     } catch (error) { toast(error instanceof ApiError ? t(`error.${error.code}` as TranslationKey) : t("toast.areaUnavailable"), "error"); }
   }, [profile, t, toast]);
@@ -80,6 +80,7 @@ export function WorldPixelApp() {
     try {
       const area = await worldPixelApi.purchaseProtection(quote.id);
       setProtectedAreas((current) => [...current, area]);
+      setProtectionDraft(null);
       setBalance((current) => current - quote.priceInCents);
       setPurchaseStatus("confirmed");
       toast(t("toast.areaProtected"), "success");
@@ -87,24 +88,23 @@ export function WorldPixelApp() {
   }, [quote, t, toast]);
 
   const selectionPreview = useMemo<ProtectedArea[]>(() => {
-    if (mode !== "protect" || !selectedCell) return protectedAreas;
-    const origin = alignProtectionOrigin(selectedCell.x, selectedCell.y);
-    return [...protectedAreas, { id: "preview", ...origin, width: 16, height: 16, ownerId: profile?.id ?? "preview", ownerName: t("preview.selectedArea"), status: "active", expiresAt: new Date(Date.now() + 86400000).toISOString() }];
-  }, [mode, profile, protectedAreas, selectedCell, t]);
+    if (mode !== "protect" || !protectionDraft) return protectedAreas;
+    return [...protectedAreas, { id: "preview", ...protectionDraft, ownerId: profile?.id ?? "preview", ownerName: t("preview.selectedArea"), status: "active", expiresAt: new Date(Date.now() + 86400000).toISOString() }];
+  }, [mode, profile, protectedAreas, protectionDraft, t]);
 
   return (
     <main className="app-shell">
       <Header profile={profile} balance={balance} onLogin={() => setLoginOpen(true)} onLogout={() => void worldPixelApi.signOut().then(() => { setProfile(null); toast(t("toast.loggedOut")); })} onHelp={() => setHelpOpen(true)} />
-      <MapBoard mode={mode} cells={cells} protectedAreas={selectionPreview} selectedCell={selectedCell} onCellSelect={setSelectedCell} onPaint={handlePaint} onProtectSelect={handleProtect} onChunksLoaded={mergeCells} onConnectionChange={setConnected} />
+      <MapBoard mode={mode} cells={cells} protectedAreas={selectionPreview} selectedCell={selectedCell} onCellSelect={setSelectedCell} onPaint={handlePaint} onProtectPreview={setProtectionDraft} onProtectSelect={handleProtect} onChunksLoaded={mergeCells} onConnectionChange={setConnected} />
       <div className="hero-copy"><span className="eyebrow">{t("hero.eyebrow")}</span><h1>{t("hero.titleStart")}<br /><em>{t("hero.titleEnd")}</em></h1><p>{t("hero.description")}</p></div>
-      <ToolDock mode={mode} onMode={setMode} color={color} onColor={setColor} />
+      <ToolDock mode={mode} onMode={(nextMode) => { setMode(nextMode); if (nextMode !== "protect") setProtectionDraft(null); }} color={color} onColor={setColor} />
       {selectedCell && <CellCard cell={selectedCell} onClose={() => setSelectedCell(null)} />}
       {!connected && <div className="connection-warning"><CloudOff size={17} /> {t("connection.reconnecting")}</div>}
       <div className="map-legend"><span><i className="free" /> {t("legend.free")}</span><span><LockKeyhole size={13} /> {t("legend.protected")}</span></div>
       <div className="toast-region" aria-live="polite">{toasts.map((item) => <div key={item.id} className={`toast ${item.tone}`}>{item.message}</div>)}</div>
       {loginOpen && <LoginModal loading={loginLoading} onClose={() => setLoginOpen(false)} onSubmit={(email) => { setLoginLoading(true); void worldPixelApi.signIn(email).then((user) => { setProfile(user); setLoginOpen(false); toast(t("toast.welcome", { name: user.displayName }), "success"); }).finally(() => setLoginLoading(false)); }} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
-      {quote && <ProtectionModal quote={quote} status={purchaseStatus} onClose={() => setQuote(null)} onConfirm={confirmProtection} />}
+      {quote && <ProtectionModal quote={quote} status={purchaseStatus} onClose={() => { setQuote(null); setProtectionDraft(null); }} onConfirm={confirmProtection} />}
     </main>
   );
 }
