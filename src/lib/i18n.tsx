@@ -24,6 +24,8 @@ const pt = {
   "tools.protect": "Proteger",
   "palette.label": "Paleta de cores",
   "palette.select": "Selecionar cor {color}",
+  "palette.custom": "Escolher qualquer cor",
+  "palette.eyedropper": "Capturar uma cor da tela",
   "map.label": "Mapa-múndi interativo de pixels",
   "map.loading": "Carregando o mundo…",
   "map.zoomPaint": "Aproxime mais para pintar",
@@ -106,7 +108,7 @@ type Catalog = Record<TranslationKey, string>;
 
 const en: Catalog = {
   "language.label": "Language", "header.live": "LIVE", "header.help": "How it works", "header.balance": "balance", "header.logout": "Log out", "header.login": "Log in",
-  "tools.label": "Map tools", "tools.navigate": "Explore", "tools.paint": "Paint", "tools.protect": "Protect", "palette.label": "Color palette", "palette.select": "Select color {color}",
+  "tools.label": "Map tools", "tools.navigate": "Explore", "tools.paint": "Paint", "tools.protect": "Protect", "palette.label": "Color palette", "palette.select": "Select color {color}", "palette.custom": "Choose any color", "palette.eyedropper": "Pick a color from the screen",
   "map.label": "Interactive world pixel map", "map.loading": "Loading the world…", "map.zoomPaint": "Zoom in to paint", "map.zoomProtect": "Zoom in to protect", "map.protectHint": "Hold Ctrl + left button and drag · maximum 256 pixels",
   "hero.eyebrow": "ONE MAP · MILLIONS OF STORIES", "hero.titleStart": "Leave your mark", "hero.titleEnd": "on the world.", "hero.description": "Zoom in, choose a color and turn one pixel into part of something huge.",
   "legend.free": "available", "legend.protected": "protected", "connection.reconnecting": "Reconnecting to the map…",
@@ -120,7 +122,7 @@ const en: Catalog = {
 
 const es: Catalog = {
   "language.label": "Idioma", "header.live": "EN VIVO", "header.help": "Cómo funciona", "header.balance": "saldo", "header.logout": "Salir", "header.login": "Entrar",
-  "tools.label": "Herramientas del mapa", "tools.navigate": "Explorar", "tools.paint": "Pintar", "tools.protect": "Proteger", "palette.label": "Paleta de colores", "palette.select": "Seleccionar color {color}",
+  "tools.label": "Herramientas del mapa", "tools.navigate": "Explorar", "tools.paint": "Pintar", "tools.protect": "Proteger", "palette.label": "Paleta de colores", "palette.select": "Seleccionar color {color}", "palette.custom": "Elegir cualquier color", "palette.eyedropper": "Capturar un color de la pantalla",
   "map.label": "Mapamundi interactivo de píxeles", "map.loading": "Cargando el mundo…", "map.zoomPaint": "Acércate para pintar", "map.zoomProtect": "Acércate para proteger", "map.protectHint": "Mantén Ctrl + botón izquierdo y arrastra · máximo 256 píxeles",
   "hero.eyebrow": "UN MAPA · MILLONES DE HISTORIAS", "hero.titleStart": "Deja tu huella", "hero.titleEnd": "en el mundo.", "hero.description": "Acércate, elige un color y convierte un píxel en parte de algo enorme.",
   "legend.free": "libre", "legend.protected": "protegido", "connection.reconnecting": "Reconectando al mapa…",

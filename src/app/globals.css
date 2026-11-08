@@ -72,10 +72,17 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
 .tool-tabs button { height: 48px; min-width: 74px; padding: 0 12px; display: flex; align-items: center; justify-content: center; gap: 7px; background: transparent; border: 0; border-radius: 11px; color: #8fa0b1; cursor: pointer; font-size: 11px; font-weight: 800; }
 .tool-tabs button.active { background: rgba(255,255,255,.1); color: white; }
 .tool-tabs button.active svg { color: var(--pink); }
-.palette { display: grid; grid-template-columns: repeat(5, 24px); gap: 4px; padding: 0 4px 0 12px; border-left: 1px solid var(--line); transition: opacity .2s; }
+.palette { display: grid; grid-template-columns: repeat(6, 24px); gap: 4px; padding: 0 4px 0 12px; border-left: 1px solid var(--line); transition: opacity .2s; }
 .palette.muted { opacity: .62; }
 .palette button { width: 24px; height: 18px; padding: 0; border-radius: 5px; border: 1px solid rgba(255,255,255,.16); background: var(--swatch); cursor: pointer; }
 .palette button.selected { box-shadow: 0 0 0 2px #07111f, 0 0 0 4px white; transform: scale(1.04); }
+.color-tool { position: relative; width: 24px; height: 18px; display: grid; place-items: center; padding: 0; border-radius: 5px; border: 1px solid rgba(255,255,255,.22); color: white; cursor: pointer; overflow: hidden; }
+.custom-color { background: conic-gradient(#ff365f, #ffd43b, #37d67a, #36a8ff, #9b5cff, #ff365f); }
+.custom-color::after { content: ""; position: absolute; inset: 4px; border-radius: 3px; background: rgba(7,17,31,.72); }
+.custom-color svg { position: relative; z-index: 1; }
+.custom-color input { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.eyedropper { background: linear-gradient(145deg, #26394d, #101d2c)!important; }
+.color-tool.selected { box-shadow: 0 0 0 2px #07111f, 0 0 0 4px white; transform: scale(1.04); }
 
 .cell-card { position: absolute; z-index: 12; right: 20px; top: 88px; width: 238px; padding: 19px; background: var(--panel); border: 1px solid var(--line); border-radius: 17px; backdrop-filter: blur(17px); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
 .close-button { position: absolute; top: 10px; right: 10px; width: 29px; height: 29px; }
@@ -153,8 +160,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
   .tool-dock { left: 10px; right: 10px; bottom: 9px; transform: none; display: block; padding: 6px; border-radius: 15px; }
   .tool-tabs { justify-content: stretch; }
   .tool-tabs button { flex: 1; min-width: 0; height: 44px; }
-  .palette { grid-template-columns: repeat(10, 1fr); border-left: 0; border-top: 1px solid var(--line); margin-top: 5px; padding: 8px 5px 3px; }
+  .palette { grid-template-columns: repeat(12, 1fr); border-left: 0; border-top: 1px solid var(--line); margin-top: 5px; padding: 8px 5px 3px; }
   .palette button { width: 100%; height: 18px; }
+  .color-tool { width: 100%; }
   .cell-card { top: auto; right: 10px; left: 10px; bottom: 132px; width: auto; padding: 14px; }
   .cell-card dl { grid-template-columns: 1fr 1fr; }
   .cell-card dl div { display: block; border-bottom: 0; padding: 0; }

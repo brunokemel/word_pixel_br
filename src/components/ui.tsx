@@ -1,11 +1,15 @@
 "use client";
 
-import { Brush, Compass, Globe2, HelpCircle, LockKeyhole, LogIn, LogOut, Map, Wallet, X } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { Brush, Compass, Globe2, HelpCircle, LockKeyhole, LogIn, LogOut, Map, Palette as PaletteIcon, Pipette, Wallet, X } from "lucide-react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import type { GridCell, ProtectionQuote, ToolMode, UserProfile } from "@/lib/types";
 import { localeLabels, type Locale, useI18n } from "@/lib/i18n";
 
 export const COLORS = ["#f6f3ea", "#ffc857", "#ff7b54", "#ff4f87", "#a86bff", "#5f8cff", "#28c9d8", "#37d6a3", "#17283a", "#0a111c"];
+
+interface EyeDropperResult { sRGBHex: string; }
+interface EyeDropperInstance { open: () => Promise<EyeDropperResult>; }
+type EyeDropperConstructor = new () => EyeDropperInstance;
 
 export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
   profile: UserProfile | null; balance: number; onLogin: () => void; onLogout: () => void; onHelp: () => void;
@@ -31,6 +35,18 @@ export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
 
 export function ToolDock({ mode, onMode, color, onColor }: { mode: ToolMode; onMode: (mode: ToolMode) => void; color: string; onColor: (color: string) => void }) {
   const { t } = useI18n();
+  const colorInputRef = useRef<HTMLInputElement>(null);
+  const selectColor = (nextColor: string) => { onColor(nextColor.toLowerCase()); onMode("paint"); };
+  const pickScreenColor = async () => {
+    const EyeDropper = (window as typeof window & { EyeDropper?: EyeDropperConstructor }).EyeDropper;
+    if (!EyeDropper) { colorInputRef.current?.click(); return; }
+    try {
+      const result = await new EyeDropper().open();
+      selectColor(result.sRGBHex);
+    } catch {
+      // O usuário pode cancelar o conta-gotas sem alterar a cor atual.
+    }
+  };
   const tools: { id: ToolMode; label: string; icon: ReactNode }[] = [
     { id: "navigate", label: t("tools.navigate"), icon: <Compass size={19} /> },
     { id: "paint", label: t("tools.paint"), icon: <Brush size={19} /> },
@@ -42,7 +58,12 @@ export function ToolDock({ mode, onMode, color, onColor }: { mode: ToolMode; onM
         {tools.map((tool) => <button key={tool.id} className={mode === tool.id ? "active" : ""} onClick={() => onMode(tool.id)} aria-pressed={mode === tool.id}>{tool.icon}<span>{tool.label}</span></button>)}
       </div>
       <div className={`palette ${mode !== "paint" ? "muted" : ""}`} aria-label={t("palette.label")}>
-        {COLORS.map((item) => <button key={item} aria-label={t("palette.select", { color: item })} aria-pressed={color === item} onClick={() => { onColor(item); onMode("paint"); }} style={{ "--swatch": item } as CSSProperties} className={color === item ? "selected" : ""} />)}
+        {COLORS.map((item) => <button key={item} aria-label={t("palette.select", { color: item })} aria-pressed={color === item} onClick={() => selectColor(item)} style={{ "--swatch": item } as CSSProperties} className={color === item ? "selected" : ""} />)}
+        <label className={`color-tool custom-color ${!COLORS.includes(color) ? "selected" : ""}`} aria-label={t("palette.custom")} title={t("palette.custom")}>
+          <PaletteIcon size={13} />
+          <input ref={colorInputRef} type="color" value={color} onChange={(event) => selectColor(event.target.value)} />
+        </label>
+        <button className="color-tool eyedropper" aria-label={t("palette.eyedropper")} title={t("palette.eyedropper")} onClick={() => void pickScreenColor()}><Pipette size={13} /></button>
       </div>
     </div>
   );
