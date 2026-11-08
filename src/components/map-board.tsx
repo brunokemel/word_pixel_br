@@ -46,13 +46,6 @@ function boundsFeature(west: number, south: number, east: number, north: number,
   };
 }
 
-function cellFeature(cell: GridCell): PolygonFeature {
-  const bounds = cellToBounds(cell.x, cell.y);
-  return boundsFeature(bounds.west, bounds.south, bounds.east, bounds.north, {
-    x: cell.x, y: cell.y, color: cell.color, protected: Boolean(cell.protectedBy),
-  });
-}
-
 function getMapBounds(map: MapLibreMap): MapBounds {
   const bounds = map.getBounds();
   return { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() };
@@ -83,11 +76,6 @@ export function MapBoard({
   useEffect(() => {
     handlersRef.current = { onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange };
   }, [onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange]);
-
-  const pixelData = useMemo<PolygonCollection>(() => ({
-    type: "FeatureCollection",
-    features: [...cells.values()].map(cellFeature),
-  }), [cells]);
 
   const protectionData = useMemo<PolygonCollection>(() => ({
     type: "FeatureCollection",
@@ -165,6 +153,28 @@ export function MapBoard({
     type GeoBrushPoint = { lng: number; lat: number };
     type GeoBrushStroke = { color: string; points: GeoBrushPoint[] };
     const brushStrokes: GeoBrushStroke[] = [];
+    const brushStorageKey = "world-pixel-brush-strokes-v1";
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(brushStorageKey) ?? "[]") as unknown;
+      if (Array.isArray(stored)) {
+        for (const candidate of stored.slice(-200)) {
+          if (
+            typeof candidate === "object" && candidate !== null &&
+            "color" in candidate && typeof candidate.color === "string" &&
+            "points" in candidate && Array.isArray(candidate.points)
+          ) {
+            const points = candidate.points.filter((point: unknown): point is GeoBrushPoint => (
+              typeof point === "object" && point !== null &&
+              "lng" in point && typeof point.lng === "number" && Number.isFinite(point.lng) &&
+              "lat" in point && typeof point.lat === "number" && Number.isFinite(point.lat)
+            ));
+            if (points.length > 0) brushStrokes.push({ color: candidate.color, points });
+          }
+        }
+      }
+    } catch {
+      window.localStorage.removeItem(brushStorageKey);
+    }
     let activeBrushStroke: GeoBrushStroke | null = null;
     let lastBrushScreenPoint: BrushPoint | null = null;
     let brushFrame: number | null = null;
@@ -201,37 +211,12 @@ export function MapBoard({
     map.on("move", scheduleBrushRender);
 
     map.on("load", () => {
-      map.addSource("pixels", { type: "geojson", data: EMPTY_COLLECTION });
-      map.addLayer({
-        id: "pixel-relief-shadow",
-        type: "fill",
-        source: "pixels",
-        paint: {
-          "fill-color": "#02050a",
-          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.18, 6, 0.48],
-          "fill-translate": [2.5, 3.5],
-          "fill-translate-anchor": "viewport",
-        },
-      });
-      map.addLayer({ id: "pixel-fill", type: "fill", source: "pixels", paint: { "fill-color": ["get", "color"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.7, 6, 0.94] } });
-      map.addLayer({
-        id: "pixel-relief-highlight",
-        type: "line",
-        source: "pixels",
-        paint: {
-          "line-color": "rgba(255,255,255,.72)",
-          "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0, 6, 0.62],
-          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.35, 9, 1.15],
-          "line-translate": [-0.7, -0.7],
-          "line-translate-anchor": "viewport",
-        },
-      });
-      map.addLayer({ id: "pixel-grid", type: "line", source: "pixels", minzoom: 4.5, paint: { "line-color": "rgba(7,17,31,.55)", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.3, 9, 1] } });
       map.addSource("protections", { type: "geojson", data: EMPTY_COLLECTION });
       map.addLayer({ id: "protection-fill", type: "fill", source: "protections", paint: { "fill-color": "#ffc857", "fill-opacity": 0.08 } });
       map.addLayer({ id: "protection-line", type: "line", source: "protections", paint: { "line-color": "#ffd66e", "line-width": 2, "line-dasharray": [2, 2] } });
       map.addSource("selection", { type: "geojson", data: EMPTY_COLLECTION });
       map.addLayer({ id: "selection", type: "line", source: "selection", paint: { "line-color": "#ffffff", "line-width": 3 } });
+      scheduleBrushRender();
       void loadViewport(map);
     });
 
@@ -331,6 +316,9 @@ export function MapBoard({
         activeBrushStroke.points.push({ lng: event.lngLat.lng, lat: event.lngLat.lat });
         scheduleBrushRender();
       }
+      if (painting && activeBrushStroke) {
+        try { window.localStorage.setItem(brushStorageKey, JSON.stringify(brushStrokes)); } catch { /* armazenamento indisponível */ }
+      }
       painting = false;
       activeBrushStroke = null;
       lastBrushScreenPoint = null;
@@ -365,7 +353,6 @@ export function MapBoard({
     else map.dragPan.enable();
   }, [mode]);
 
-  useEffect(() => { (mapRef.current?.getSource("pixels") as GeoJSONSource | undefined)?.setData(pixelData); }, [pixelData]);
   useEffect(() => { (mapRef.current?.getSource("protections") as GeoJSONSource | undefined)?.setData(protectionData); }, [protectionData]);
   useEffect(() => { (mapRef.current?.getSource("selection") as GeoJSONSource | undefined)?.setData(selectionData); }, [selectionData]);
 
