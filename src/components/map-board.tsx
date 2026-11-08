@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
+import { densifyBrushPoints, distanceBetween, drawSmoothBrushStroke, type BrushPoint } from "@/lib/brush";
 import { cellToBounds, createProtectionSelection, interpolateCellLine, lngLatToCell, MIN_PAINT_ZOOM, visibleChunkIds } from "@/lib/grid";
 import type { GridCell, MapBounds, ProtectedArea, ProtectionSelection, ToolMode } from "@/lib/types";
 import { worldPixelApi } from "@/lib/mock-api";
@@ -25,8 +26,10 @@ interface MapBoardProps {
   cells: Map<string, GridCell>;
   protectedAreas: ProtectedArea[];
   selectedCell: GridCell | null;
+  brushColor: string;
+  canPaint: boolean;
   onCellSelect: (cell: GridCell) => void;
-  onPaint: (cell: GridCell) => void;
+  onPaint: (cells: GridCell[]) => void;
   onProtectPreview: (selection: ProtectionSelection | null) => void;
   onProtectSelect: (selection: ProtectionSelection) => void;
   onChunksLoaded: (cells: GridCell[]) => void;
@@ -56,15 +59,18 @@ function getMapBounds(map: MapLibreMap): MapBounds {
 }
 
 export function MapBoard({
-  mode, cells, protectedAreas, selectedCell, onCellSelect, onPaint, onProtectPreview, onProtectSelect,
+  mode, cells, protectedAreas, selectedCell, brushColor, canPaint, onCellSelect, onPaint, onProtectPreview, onProtectSelect,
   onChunksLoaded, onConnectionChange,
 }: MapBoardProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
+  const brushCanvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const cellsRef = useRef(cells);
   const modeRef = useRef(mode);
+  const brushColorRef = useRef(brushColor);
+  const canPaintRef = useRef(canPaint);
   const handlersRef = useRef({ onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange });
   const [zoom, setZoom] = useState(3.2);
   const [loading, setLoading] = useState(true);
@@ -72,6 +78,8 @@ export function MapBoard({
 
   useEffect(() => { cellsRef.current = cells; }, [cells]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => { brushColorRef.current = brushColor; }, [brushColor]);
+  useEffect(() => { canPaintRef.current = canPaint; }, [canPaint]);
   useEffect(() => {
     handlersRef.current = { onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange };
   }, [onCellSelect, onPaint, onProtectPreview, onProtectSelect, onChunksLoaded, onConnectionChange]);
@@ -154,6 +162,44 @@ export function MapBoard({
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
 
+    type GeoBrushPoint = { lng: number; lat: number };
+    type GeoBrushStroke = { color: string; points: GeoBrushPoint[] };
+    const brushStrokes: GeoBrushStroke[] = [];
+    let activeBrushStroke: GeoBrushStroke | null = null;
+    let lastBrushScreenPoint: BrushPoint | null = null;
+    let brushFrame: number | null = null;
+
+    const renderBrushStrokes = () => {
+      brushFrame = null;
+      const canvas = brushCanvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      if (canvas.width !== Math.round(width * pixelRatio) || canvas.height !== Math.round(height * pixelRatio)) {
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+      }
+      const context = canvas.getContext("2d", { alpha: true });
+      if (!context) return;
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      context.clearRect(0, 0, width, height);
+      for (const stroke of brushStrokes) {
+        const projected = stroke.points.map((point) => map.project([point.lng, point.lat]));
+        drawSmoothBrushStroke(context, densifyBrushPoints(projected, 2.5), stroke.color, 12);
+      }
+    };
+
+    const scheduleBrushRender = () => {
+      if (brushFrame === null) brushFrame = window.requestAnimationFrame(renderBrushStrokes);
+    };
+    const resizeObserver = new ResizeObserver(scheduleBrushRender);
+    resizeObserver.observe(containerRef.current);
+    map.on("move", scheduleBrushRender);
+
     map.on("load", () => {
       map.addSource("pixels", { type: "geojson", data: EMPTY_COLLECTION });
       map.addLayer({
@@ -199,6 +245,14 @@ export function MapBoard({
       const base = lngLatToCell(event.lngLat.lng, event.lngLat.lat);
       setCursorCell({ ...base, color: cellsRef.current.get(`${base.x}:${base.y}`)?.color ?? "#18283b" });
       if (painting) paintTowards(base);
+      if (painting && activeBrushStroke) {
+        const screenPoint = { x: event.point.x, y: event.point.y };
+        if (!lastBrushScreenPoint || distanceBetween(lastBrushScreenPoint, screenPoint) >= 0.5) {
+          activeBrushStroke.points.push({ lng: event.lngLat.lng, lat: event.lngLat.lat });
+          lastBrushScreenPoint = screenPoint;
+          scheduleBrushRender();
+        }
+      }
       if (protectionStart) handlersRef.current.onProtectPreview(createProtectionSelection(protectionStart, base));
     });
     let painting = false;
@@ -210,6 +264,7 @@ export function MapBoard({
       if (map.getZoom() < MIN_PAINT_ZOOM) return;
       const path = lastPaintCell ? interpolateCellLine(lastPaintCell, target) : [target];
       lastPaintCell = target;
+      const cellsToPaint: GridCell[] = [];
       for (const point of path) {
         const key = `${point.x}:${point.y}`;
         if (paintedInStroke.has(key) || !worldPixelApi.isLandCell(point.x, point.y)) continue;
@@ -223,8 +278,12 @@ export function MapBoard({
           lat: bounds.north,
           color: "#18283b",
         };
-        handlersRef.current.onCellSelect(cell);
-        handlersRef.current.onPaint(cell);
+        cellsToPaint.push(cell);
+      }
+      const lastCell = cellsToPaint.at(-1);
+      if (lastCell) {
+        handlersRef.current.onCellSelect(lastCell);
+        handlersRef.current.onPaint(cellsToPaint);
       }
     };
 
@@ -243,9 +302,21 @@ export function MapBoard({
       }
       if (modeRef.current !== "paint") return;
       event.preventDefault();
+      if (!canPaintRef.current) {
+        paintTowards(lngLatToCell(event.lngLat.lng, event.lngLat.lat));
+        return;
+      }
       painting = true;
       lastPaintCell = null;
       paintedInStroke = new Set();
+      activeBrushStroke = {
+        color: brushColorRef.current,
+        points: [{ lng: event.lngLat.lng, lat: event.lngLat.lat }],
+      };
+      brushStrokes.push(activeBrushStroke);
+      if (brushStrokes.length > 200) brushStrokes.shift();
+      lastBrushScreenPoint = { x: event.point.x, y: event.point.y };
+      scheduleBrushRender();
       paintTowards(lngLatToCell(event.lngLat.lng, event.lngLat.lat));
     });
     const finishInteraction = (event?: MapMouseEvent) => {
@@ -256,7 +327,13 @@ export function MapBoard({
       }
       protectionStart = null;
       if (modeRef.current === "protect") map.dragPan.enable();
+      if (painting && activeBrushStroke && event) {
+        activeBrushStroke.points.push({ lng: event.lngLat.lng, lat: event.lngLat.lat });
+        scheduleBrushRender();
+      }
       painting = false;
+      activeBrushStroke = null;
+      lastBrushScreenPoint = null;
       lastPaintCell = null;
       paintedInStroke.clear();
     };
@@ -273,6 +350,8 @@ export function MapBoard({
     });
     return () => {
       clearTimeout(debounce);
+      resizeObserver.disconnect();
+      if (brushFrame !== null) window.cancelAnimationFrame(brushFrame);
       unsubscribeRef.current?.();
       map.remove();
       mapRef.current = null;
@@ -294,6 +373,7 @@ export function MapBoard({
     <div className={`map-shell mode-${mode}`}>
       <div ref={containerRef} className="map-container" aria-label={t("map.label")} />
       <div className="map-vignette" aria-hidden="true" />
+      <canvas ref={brushCanvasRef} className="brush-canvas" aria-hidden="true" />
       {loading && <div className="map-status"><span className="spinner" /> {t("map.loading")}</div>}
       {zoom < MIN_PAINT_ZOOM && mode !== "navigate" && (
         <div className="zoom-hint">{mode === "paint" ? t("map.zoomPaint") : t("map.zoomProtect")}</div>

@@ -48,6 +48,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
 .map-shell, .map-container { position: absolute; inset: 0; }
 .map-container { top: 68px; }
 .map-vignette { pointer-events: none; position: absolute; inset: 68px 0 0; z-index: 2; background: radial-gradient(circle at 65% 45%, transparent 28%, rgba(4,11,20,.18) 70%, rgba(4,11,20,.52) 100%); }
+.brush-canvas { pointer-events: none; position: absolute; z-index: 3; top: 68px; left: 0; width: 100%; height: calc(100% - 68px); }
 .mode-paint .map-container canvas, .mode-protect .map-container canvas { cursor: crosshair; }
 .maplibregl-ctrl-bottom-right { bottom: 76px; right: 14px; }
 .maplibregl-ctrl-group { overflow: hidden; border-radius: 11px!important; background: rgba(9,20,34,.9)!important; border: 1px solid var(--line); }
@@ -145,6 +146,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
   .primary-button.compact { min-height: 36px; padding: 0 12px; }
   .map-container { top: 58px; }
   .map-vignette { inset: 58px 0 0; background: linear-gradient(180deg, rgba(4,11,20,.35), transparent 30%, rgba(4,11,20,.2)); }
+  .brush-canvas { top: 58px; height: calc(100% - 58px); }
   .hero-copy { top: 93px; left: 18px; }
   .hero-copy h1 { font-size: 38px; }
   .hero-copy p { display: none; }

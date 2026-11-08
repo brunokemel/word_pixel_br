@@ -14,3 +14,10 @@
 - Para seleção livre, `ProtectionQuote` e `quoteProtection` precisam transportar origem, largura e altura; o limite inicial será 256 pixels.
 - A seleção por arraste usa um retângulo proporcional limitado automaticamente a 256 pixels; o mock cobra R$ 0,01 por pixel.
 - A cotação rejeita áreas que cruzam o oceano ou se sobrepõem a uma proteção ativa.
+- O pincel atual interpola células geográficas e atualiza GeoJSON/React a cada célula, portanto a aparência final continua quadriculada e o feedback depende do ciclo de estado.
+- Uma camada Canvas com `pointer-events: none` pode desenhar o traço ativo progressivamente, enquanto o fluxo existente persiste apenas as células atravessadas.
+- O gesto do MapLibre já fornece pontos de tela e coordenadas geográficas no mesmo evento, permitindo separar renderização imediata e persistência.
+- A documentação local do Next 16 confirma que Canvas, eventos e APIs do navegador devem permanecer em Client Components; `MapBoard` já é a fronteira correta com `"use client"`.
+- Para manter o traço alinhado durante zoom e navegação, os pontos concluídos serão armazenados como longitude/latitude e reprojetados pelo MapLibre antes de cada desenho.
+- O navegador interno não está disponível nesta sessão; a geometria do pincel foi coberta por testes unitários e o bundle de produção compilou sem erros.
+- A persistência foi agrupada por movimento: uma atualização otimista por lote e chamadas assíncronas paralelas, sem bloquear o Canvas.

@@ -21,3 +21,8 @@
 - Typecheck passou, 13 testes passaram e o build de produção foi concluído.
 - Push automático bloqueado pela política do ambiente; preparação de commit local iniciada separadamente.
 - Seleção de proteção alterada para Ctrl + botão esquerdo + arrastar; navegação comum permanece disponível e o limite continua em 256 pixels.
+- Iniciada a Phase 7 para substituir o feedback quadriculado do pincel por um traço Canvas contínuo, suavizado e progressivo.
+- Camada Canvas, curva quadrática, interpolação de até 2,5 px e reprojeção geográfica implementadas.
+- Persistência otimista agrupada por movimento; 15 testes, typecheck e build aprovados.
+- Servidor temporário respondeu HTTP 200 e foi encerrado após a verificação.
+- Phase 7 concluída: pincel Canvas contínuo, progressivo, suavizado e independente da latência da persistência.

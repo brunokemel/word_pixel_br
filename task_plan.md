@@ -4,7 +4,7 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Entregar a seleção retangular validada e documentar como testar.
+Entregar o pincel contínuo validado e orientar o teste visual local.
 
 ## Current Phase
 Concluído.
@@ -44,6 +44,14 @@ Concluído.
 - [x] Exibir dimensões, quantidade de pixels e preço na confirmação
 - [x] Validar conflitos, limite, typecheck, testes e build
 
+### Phase 7 — Pincel contínuo estilo Paint
+**Status:** complete
+- [x] Criar camada Canvas responsiva sobre o MapLibre
+- [x] Renderizar linha vetorial progressiva com suavização quadrática/Catmull-Rom
+- [x] Interpolar amostras rápidas e manter espessura constante
+- [x] Persistir as células atravessadas sem bloquear o feedback visual
+- [x] Validar desempenho, typecheck, testes e build
+
 ## Decisions Made
 | Decision | Rationale |
 |---|---|
@@ -52,6 +60,7 @@ Concluído.
 | GeoJSON em layers do MapLibre | Evita um elemento DOM por pixel e mantém interação acoplada ao mapa |
 | Catálogo local tipado com React Context | Evita dependência adicional e deixa a futura migração para rotas localizadas opcional |
 | Limite inicial de 256 pixels por compra | Preserva o teto econômico do bloco 16×16 atual, permitindo formatos retangulares livres |
+| Canvas 2D separado para o traço ativo | Evita esperar React, MapLibre ou rede; o feedback aparece no mesmo frame e as células continuam sendo persistidas em paralelo |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -61,3 +70,5 @@ Concluído.
 | Prévia visual não pôde abrir porque nenhum navegador estava disponível no ambiente | 1 | Confirmada resposta HTTP 200; limitação registrada para o handoff |
 | `npm run check` não existe no frontend | 1 | Executados separadamente `npm run typecheck`, `npm test` e `npm run build` |
 | Comando combinado de commit e `git push` foi bloqueado pela política do ambiente | 1 | Nenhuma etapa executou; commit local será feito separadamente e o push ficará para o terminal do usuário |
+| Navegador interno indisponível para QA visual do pincel | 1 | Mantidas validações automatizadas e solicitado teste visual local após o handoff |
+| Checagem HTTP recusada porque o servidor dev estava parado | 1 | Iniciar instância temporária em porta isolada, validar e encerrar |

@@ -48,21 +48,37 @@ export function WorldPixelApp() {
     });
   }, []);
 
-  const handlePaint = useCallback(async (cell: GridCell) => {
+  const handlePaint = useCallback(async (paintedCells: GridCell[]) => {
     if (!profile) { setLoginOpen(true); toast(t("toast.loginToPaint"), "info"); return; }
-    if (cell.protectedBy && cell.protectedBy !== profile.displayName) { toast(t("toast.protectedBy", { name: cell.protectedBy }), "error"); return; }
-    const key = `${cell.x}:${cell.y}`;
-    const previous = cells.get(key);
-    const optimistic: GridCell = { ...cell, color, authorName: profile.displayName, updatedAt: new Date().toISOString() };
-    mergeCells([optimistic]);
-    setSelectedCell(optimistic);
-    try {
-      const saved = await worldPixelApi.paintPixel({ cellX: cell.x, cellY: cell.y, color, idempotencyKey: crypto.randomUUID() });
-      mergeCells([saved]); setSelectedCell(saved); toast(t("toast.pixelPainted"), "success");
-    } catch (error) {
-      setCells((current) => { const next = new Map(current); previous ? next.set(key, previous) : next.delete(key); return next; });
-      const message = error instanceof ApiError ? t(`error.${error.code}` as TranslationKey) : t("toast.paintFailed");
-      toast(message, "error");
+    const protectedCell = paintedCells.find((cell) => cell.protectedBy && cell.protectedBy !== profile.displayName);
+    if (protectedCell?.protectedBy) { toast(t("toast.protectedBy", { name: protectedCell.protectedBy }), "error"); return; }
+    const previous = new Map(paintedCells.map((cell) => [`${cell.x}:${cell.y}`, cells.get(`${cell.x}:${cell.y}`)]));
+    const optimistic = paintedCells.map((cell) => ({ ...cell, color, authorName: profile.displayName, updatedAt: new Date().toISOString() }));
+    mergeCells(optimistic);
+    if (optimistic.length > 0) setSelectedCell(optimistic[optimistic.length - 1]);
+
+    const results = await Promise.allSettled(paintedCells.map((cell) => worldPixelApi.paintPixel({
+      cellX: cell.x,
+      cellY: cell.y,
+      color,
+      idempotencyKey: crypto.randomUUID(),
+    })));
+    const saved = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    if (saved.length > 0) mergeCells(saved);
+    const failedKeys = paintedCells.flatMap((cell, index) => results[index].status === "rejected" ? [`${cell.x}:${cell.y}`] : []);
+    if (failedKeys.length > 0) {
+      setCells((current) => {
+        const next = new Map(current);
+        failedKeys.forEach((key) => {
+          const oldCell = previous.get(key);
+          if (oldCell) next.set(key, oldCell);
+          else next.delete(key);
+        });
+        return next;
+      });
+      const rejected = results.find((result) => result.status === "rejected");
+      const error = rejected?.status === "rejected" ? rejected.reason : null;
+      toast(error instanceof ApiError ? t(`error.${error.code}` as TranslationKey) : t("toast.paintFailed"), "error");
     }
   }, [cells, color, mergeCells, profile, t, toast]);
 
@@ -95,7 +111,7 @@ export function WorldPixelApp() {
   return (
     <main className="app-shell">
       <Header profile={profile} balance={balance} onLogin={() => setLoginOpen(true)} onLogout={() => void worldPixelApi.signOut().then(() => { setProfile(null); toast(t("toast.loggedOut")); })} onHelp={() => setHelpOpen(true)} />
-      <MapBoard mode={mode} cells={cells} protectedAreas={selectionPreview} selectedCell={selectedCell} onCellSelect={setSelectedCell} onPaint={handlePaint} onProtectPreview={setProtectionDraft} onProtectSelect={handleProtect} onChunksLoaded={mergeCells} onConnectionChange={setConnected} />
+      <MapBoard mode={mode} cells={cells} protectedAreas={selectionPreview} selectedCell={selectedCell} brushColor={color} canPaint={Boolean(profile)} onCellSelect={setSelectedCell} onPaint={handlePaint} onProtectPreview={setProtectionDraft} onProtectSelect={handleProtect} onChunksLoaded={mergeCells} onConnectionChange={setConnected} />
       <div className="hero-copy"><span className="eyebrow">{t("hero.eyebrow")}</span><h1>{t("hero.titleStart")}<br /><em>{t("hero.titleEnd")}</em></h1><p>{t("hero.description")}</p></div>
       <ToolDock mode={mode} onMode={(nextMode) => { setMode(nextMode); if (nextMode !== "protect") setProtectionDraft(null); }} color={color} onColor={setColor} />
       {selectedCell && <CellCard cell={selectedCell} onClose={() => setSelectedCell(null)} />}
