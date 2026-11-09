@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { Brush, Compass, Globe2, HelpCircle, LockKeyhole, LogIn, LogOut, Wallet, X } from "lucide-react";
-import { type CSSProperties, type ReactNode } from "react";
+import { Brush, Compass, Flag, Globe2, HelpCircle, LockKeyhole, LogIn, LogOut, Wallet, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import type { GridCell, ProtectionQuote, ToolMode, UserProfile } from "@/lib/types";
 import { localeLabels, type Locale, useI18n } from "@/lib/i18n";
 import { COLOR_PALETTE } from "@/lib/palette";
+import { reportCategories, type ReportCategory, validateReport } from "@/lib/reports";
 import logoMaior from "@/logo/logoMaior.png";
 
 export const COLORS = [...COLOR_PALETTE];
@@ -52,9 +53,10 @@ export function ToolDock({ mode, onMode, color, onColor }: { mode: ToolMode; onM
   );
 }
 
-export function CellCard({ cell, onClose }: { cell: GridCell; onClose: () => void }) {
+export function CellCard({ cell, onClose, onReport }: { cell: GridCell; onClose: () => void; onReport: () => void }) {
   const { t } = useI18n();
-  const protectedDays = cell.protectedUntil ? Math.max(1, Math.ceil((new Date(cell.protectedUntil).getTime() - Date.now()) / 86400000)) : null;
+  const [openedAt] = useState(() => Date.now());
+  const protectedDays = cell.protectedUntil ? Math.max(1, Math.ceil((new Date(cell.protectedUntil).getTime() - openedAt) / 86400000)) : null;
   return (
     <aside className="cell-card" aria-label={t("cell.label")}>
       <button className="close-button" onClick={onClose} aria-label={t("cell.close")}><X size={17} /></button>
@@ -62,13 +64,71 @@ export function CellCard({ cell, onClose }: { cell: GridCell; onClose: () => voi
       <div className="cell-title"><i style={{ background: cell.color }} /><strong>{cell.x} · {cell.y}</strong></div>
       <dl><div><dt>{t("cell.lastPaint")}</dt><dd>{cell.authorName ?? t("cell.unpainted")}</dd></div><div><dt>{t("cell.coordinate")}</dt><dd>{cell.lat.toFixed(2)}°, {cell.lng.toFixed(2)}°</dd></div></dl>
       {cell.protectedBy && <div className="protected-note"><LockKeyhole size={16} /><span>{t("cell.protectedBy")} <strong>{cell.protectedBy}</strong><small>{t("cell.daysRemaining", { days: protectedDays ?? 0 })}</small></span></div>}
+      <button className="report-button" onClick={onReport}><Flag size={15} /> {t("cell.report")}</button>
     </aside>
   );
 }
 
 export function Modal({ children, onClose, label }: { children: ReactNode; onClose: () => void; label: string }) {
   const { t } = useI18n();
-  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><section className="modal-card" role="dialog" aria-modal="true" aria-label={label} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose} aria-label={t("modal.close")}><X size={19} /></button>{children}</section></div>;
+  const dialogRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const autofocus = dialogRef.current?.querySelector<HTMLElement>("[data-autofocus]");
+    const firstFocusable = dialogRef.current?.querySelector<HTMLElement>("button, select, textarea, input");
+    (autofocus ?? firstFocusable ?? dialogRef.current)?.focus();
+    const handleEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleEscape);
+    return () => { document.removeEventListener("keydown", handleEscape); previousFocus?.focus(); };
+  }, [onClose]);
+  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><section ref={dialogRef} className="modal-card" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose} aria-label={t("modal.close")}><X size={19} /></button>{children}</section></div>;
+}
+
+export function ReportModal({ cell, submitting, submitError, onClose, onSubmit }: {
+  cell: GridCell;
+  submitting: boolean;
+  submitError: string | null;
+  onClose: () => void;
+  onSubmit: (category: ReportCategory, reason: string) => void;
+}) {
+  const { t } = useI18n();
+  const [category, setCategory] = useState<ReportCategory | "">("");
+  const [reason, setReason] = useState("");
+  const [categoryError, setCategoryError] = useState(false);
+  const [reasonError, setReasonError] = useState(false);
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+    const validation = validateReport(category, reason);
+    setCategoryError(!validation.categoryValid);
+    setReasonError(!validation.reasonValid);
+    if (!validation.categoryValid || !validation.reasonValid || !category) return;
+    onSubmit(category, validation.trimmedReason);
+  };
+  return <Modal onClose={onClose} label={t("report.label")}>
+    <div className="modal-icon pink"><Flag size={24} /></div>
+    <span className="eyebrow">{t("report.eyebrow")}</span>
+    <h2>{t("report.title")}</h2>
+    <p>{t("report.description")}</p>
+    <div className="report-target" aria-label={`${cell.x}:${cell.y}`}>{cell.x}:{cell.y}</div>
+    <form className="report-form" onSubmit={handleSubmit} noValidate>
+      <label htmlFor="report-category">{t("report.category")}</label>
+      <select id="report-category" name="category" value={category} data-autofocus required aria-required="true" aria-invalid={categoryError} aria-describedby={categoryError ? "report-category-error" : undefined} onChange={(event) => { setCategory(event.target.value as ReportCategory | ""); setCategoryError(false); }} disabled={submitting}>
+        <option value="">{t("report.categoryPlaceholder")}</option>
+        {reportCategories.map((item) => <option key={item.value} value={item.value}>{t(item.labelKey)}</option>)}
+      </select>
+      {categoryError && <p id="report-category-error" className="field-error">{t("report.error.category")}</p>}
+      <label htmlFor="report-reason">{t("report.reason")}</label>
+      <textarea id="report-reason" name="reason" value={reason} minLength={3} maxLength={500} rows={5} required aria-required="true" placeholder={t("report.reasonPlaceholder")} aria-invalid={reasonError} aria-describedby={reasonError ? "report-reason-error report-counter" : "report-counter"} onChange={(event) => { setReason(event.target.value); setReasonError(false); }} disabled={submitting} />
+      <div id="report-counter" className="character-counter">{t("report.counter", { count: reason.length })}</div>
+      {reasonError && <p id="report-reason-error" className="field-error">{t("report.error.reason")}</p>}
+      {submitError && <div className="inline-error" role="alert">{submitError}</div>}
+      <div className="modal-actions">
+        <button type="button" className="secondary-button" onClick={onClose} disabled={submitting}>{t("report.cancel")}</button>
+        <button type="submit" className="primary-button" disabled={submitting}>{submitting ? <><span className="spinner" /> {t("report.submitting")}</> : submitError ? t("report.retry") : t("report.submit")}</button>
+      </div>
+    </form>
+  </Modal>;
 }
 
 export function LoginModal({ onClose, onSubmit, loading }: { onClose: () => void; onSubmit: (email: string) => void; loading: boolean }) {

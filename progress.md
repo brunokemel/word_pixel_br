@@ -44,3 +44,10 @@
 - Orientação de caneta capacitiva adicionada em pt/en/es e limitada a dispositivos com ponteiro touch.
 - Pintura e proteção agora respondem a eventos touch de um ponto; gestos de dois dedos permanecem livres para zoom.
 - Typecheck, 13 testes e build de produção passaram após a Phase 10.
+- Iniciada a Phase 11 para integrar denúncias autenticadas de pixel ao endpoint `/reports`.
+- Arquitetura inspecionada; definidos cliente HTTP existente, `CellCard`, `Modal`, toasts e i18n como pontos de extensão.
+- Método autenticado `submitReport` adicionado ao cliente HTTP existente, sem nova URL ou API paralela.
+- Ação Denunciar adicionada ao cartão do pixel; modal inclui categoria, descrição, contador, validação, loading, retry, Escape e foco inicial.
+- Erros 400/401/429/rede/500 tratados; request ID é registrado no console e sucesso fecha/limpa o formulário sem alterar o desenho.
+- Fluxo traduzido em pt/en/es e ajustado para celular e desktop.
+- ESLint oficial do Next 16 configurado; lint, typecheck, 22 testes e build de produção passaram.

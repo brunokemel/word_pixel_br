@@ -2,6 +2,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { cellToBounds, getChunkId } from "./grid";
 import { colorIdToHex } from "./palette";
 import { getSession, getSupabase, userToProfile } from "./supabase";
+import type { ReportPayload, ReportRecord } from "./reports";
 import { ApiError, type ApiErrorCode, type GridCell, type MapBounds, type PixelChange, type PixelChunk, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type RealtimeEvent, type WalletBalance, type WorldPixelApi } from "./types";
 
 type SuccessEnvelope<T> = { ok: true; data: T; request_id?: string };
@@ -10,6 +11,11 @@ type ApiPixel = { cell_x?: number; cell_y?: number; x?: number; y?: number; chun
 
 const API_URL = process.env.NEXT_PUBLIC_WORLD_PIXEL_API_URL?.replace(/\/$/, "") ?? "";
 const TIMEOUT_MS = 60_000;
+
+async function refreshSession() {
+  const result = await getSupabase()?.auth.refreshSession();
+  return result?.data.session ?? null;
+}
 
 function apiCode(code: string | undefined): ApiErrorCode {
   const known: ApiErrorCode[] = ["UNAUTHENTICATED", "RATE_LIMITED", "CELL_NOT_LAND", "AREA_PROTECTED", "INSUFFICIENT_CREDITS", "AREA_CONFLICT", "IDEMPOTENCY_CONFLICT", "FORBIDDEN", "NOT_FOUND", "INTERNAL_ERROR", "VALIDATION_ERROR"];
@@ -33,14 +39,20 @@ function toProtection(raw: Record<string, unknown>): ProtectedArea {
 export class HttpWorldPixelApi implements WorldPixelApi {
   private mapController: AbortController | null = null;
 
+  constructor(
+    private readonly apiUrl = API_URL,
+    private readonly sessionProvider: typeof getSession = getSession,
+    private readonly sessionRefresher = refreshSession,
+  ) {}
+
   private async request<T>(path: string, init: RequestInit = {}, authenticated = false, retried = false): Promise<T> {
-    if (!API_URL) throw new ApiError("CONFIGURATION_ERROR", "NEXT_PUBLIC_WORLD_PIXEL_API_URL não configurada.");
+    if (!this.apiUrl) throw new ApiError("CONFIGURATION_ERROR", "NEXT_PUBLIC_WORLD_PIXEL_API_URL não configurada.");
     const headers = new Headers(init.headers);
     headers.set("Accept", "application/json");
     headers.set("X-Request-Id", crypto.randomUUID());
     if (init.body) headers.set("Content-Type", "application/json");
     if (authenticated) {
-      const session = await getSession();
+      const session = await this.sessionProvider();
       if (!session) throw new ApiError("UNAUTHENTICATED", "Entre para continuar.", undefined, 401);
       headers.set("Authorization", `Bearer ${session.access_token}`);
     }
@@ -48,14 +60,13 @@ export class HttpWorldPixelApi implements WorldPixelApi {
     const signal = init.signal ? AbortSignal.any([controller.signal, init.signal]) : controller.signal;
     const timeout = window.setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const response = await fetch(`${API_URL}${path}`, { ...init, headers, signal });
+      const response = await fetch(`${this.apiUrl}${path}`, { ...init, headers, signal });
       const payload = await response.json().catch(() => null) as SuccessEnvelope<T> | ErrorEnvelope | null;
       if (!response.ok || !payload || payload.ok !== true) {
         const error = payload && payload.ok === false ? payload.error : {};
         if (response.status === 401 && authenticated && !retried) {
-          const supabase = getSupabase();
-          const refreshed = await supabase?.auth.refreshSession();
-          if (refreshed?.data.session) return this.request<T>(path, init, authenticated, true);
+          const refreshed = await this.sessionRefresher();
+          if (refreshed) return this.request<T>(path, init, authenticated, true);
         }
         throw new ApiError(apiCode(error.code), error.message ?? `Falha HTTP ${response.status}.`, error.request_id, response.status);
       }
@@ -102,6 +113,15 @@ export class HttpWorldPixelApi implements WorldPixelApi {
     return { credits: data.wallet.balance_credits, currency: "BRL" };
   }
 
+  async submitReport(payload: ReportPayload): Promise<ReportRecord> {
+    const data = await this.request<{ report: { id: string; category: ReportRecord["category"]; status: string; created_at: string } }>(
+      "/reports",
+      { method: "POST", body: JSON.stringify(payload) },
+      true,
+    );
+    return { id: data.report.id, category: data.report.category, status: data.report.status, createdAt: data.report.created_at };
+  }
+
   async getProfile() { const session = await getSession(); return session ? userToProfile(session.user) : null; }
   async signIn(email: string) {
     const supabase = getSupabase();
@@ -110,7 +130,7 @@ export class HttpWorldPixelApi implements WorldPixelApi {
     if (error) throw new ApiError("UNAUTHENTICATED", error.message);
   }
   async signOut() { await getSupabase()?.auth.signOut(); }
-  isLandCell(_x: number, _y: number) { return true; }
+  isLandCell(x: number, y: number) { void x; void y; return true; }
 
   subscribe(chunkIds: string[], listener: (event: RealtimeEvent) => void) {
     const supabase = getSupabase();

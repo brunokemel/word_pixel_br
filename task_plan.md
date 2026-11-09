@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Validar em aparelhos físicos após o próximo deploy e ajustar casos específicos, se encontrados.
+Validar o fluxo contra a API publicada após o próximo deploy.
 
 ## Current Phase
-Concluído no código; pronto para commit e teste em dispositivos físicos.
+Concluído no código; pronto para revisão e deploy, sem commit.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -75,6 +75,15 @@ Concluído no código; pronto para commit e teste em dispositivos físicos.
 - [x] Traduzir a orientação em português, inglês e espanhol
 - [x] Executar typecheck, testes e build de produção
 
+### Phase 11 — Denúncias de pixel
+**Status:** complete
+- [x] Adicionar contrato e método autenticado `POST /reports` ao cliente HTTP existente
+- [x] Adicionar ação no cartão do pixel e modal acessível com validação 3..500
+- [x] Tratar autenticação, duplicidade, sucesso, erros HTTP e request ID
+- [x] Traduzir todo o fluxo em português, inglês e espanhol
+- [x] Cobrir abertura/fechamento, validação, payload, autenticação e respostas com testes
+- [x] Configurar e executar lint, typecheck, testes e build
+
 ## Decisions Made
 | Decision | Rationale |
 |---|---|
@@ -88,6 +97,8 @@ Concluído no código; pronto para commit e teste em dispositivos físicos.
 | Proteção fixa 16×16 e paleta numérica de 32 cores | São invariantes validados pelo backend; o front não deve oferecer payloads que serão rejeitados |
 | PNG horizontal no header e PNG quadrado nos metadados | Reutiliza os ativos oficiais, preserva transparência e deixa a otimização do header a cargo do Next Image |
 | Media queries por largura, altura, orientação e tipo de ponteiro | Cobre celular, tablet, paisagem, safe areas e touch sem depender de detecção frágil por user agent |
+| Denúncia aberta a partir do cartão do pixel | Mantém a ação contextual, não polui o mapa e fornece `cellX:cellY` sem entrada manual |
+| Estado do formulário local e envio controlado pelo app | Permite validação acessível, retry sem perder dados e trava duplicidade também fora do botão |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -101,3 +112,5 @@ Concluído no código; pronto para commit e teste em dispositivos físicos.
 | Checagem HTTP recusada porque o servidor dev estava parado | 1 | Iniciar instância temporária em porta isolada, validar e encerrar |
 | Browser interno indisponível na QA final da integração | 1 | Servidor local validado por HTTP 200; inspeção visual permanece como teste manual recomendado |
 | MapLibre falhou em produção durante `resize/_calcMatrices` | 1 | Removidas restrições de câmera incompatíveis e mantido clamp apenas no bbox enviado à API |
+| Vitest não resolveu o alias `@/` ao importar o novo teste de componente | 1 | Adicionado `vitest.config.mts` com o mesmo alias `src` usado pelo Next/TypeScript |
+| Teste revelou que o efeito genérico do modal sobrescrevia o foco inicial do formulário | 1 | Adicionado alvo explícito `data-autofocus`; modal agora inicia no campo Categoria |

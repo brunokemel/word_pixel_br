@@ -1,3 +1,5 @@
+import type { ReportPayload, ReportRecord } from "./reports";
+
 export type ToolMode = "navigate" | "paint" | "protect";
 
 export interface GridCell {
@@ -119,6 +121,7 @@ export interface WorldPixelApi {
   purchaseProtection(selection: ProtectionSelection, idempotencyKey: string): Promise<ProtectedArea>;
   getProtection(id: string): Promise<ProtectedArea | null>;
   getWallet(): Promise<WalletBalance>;
+  submitReport(payload: ReportPayload): Promise<ReportRecord>;
   getProfile(): Promise<UserProfile | null>;
   signIn(email: string): Promise<void>;
   signOut(): Promise<void>;

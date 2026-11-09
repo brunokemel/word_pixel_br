@@ -30,3 +30,6 @@
 - `src/logo/logoMenor.png` tem 1254×1254 com transparência e é a versão quadrada adequada para favicon/ícone do aplicativo.
 - A dica de caneta capacitiva pode ser controlada por `@media (pointer: coarse)`, evitando exibi-la em desktops.
 - O MapLibre expõe `MapTouchEvent` com `point`, `lngLat`, `points` e `preventDefault`; pintura/proteção precisam desses eventos além dos eventos de mouse.
+- O fluxo de denúncia deve reutilizar `HttpWorldPixelApi.request`, que já injeta `Accept`, `Content-Type`, Bearer do Supabase, timeout, renovação de sessão e envelopes de erro.
+- `CellCard` já concentra as ações do pixel; o botão de denúncia pertence ali, enquanto `WorldPixelApp` deve controlar autenticação, envio, toast e prevenção duplicada.
+- O projeto não tinha ESLint configurado. Next 16 removeu `next lint`; a documentação local recomenda ESLint CLI com `eslint-config-next/core-web-vitals` e `typescript`.

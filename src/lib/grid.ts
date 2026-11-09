@@ -58,9 +58,11 @@ export function interpolateCellLine(
 
 export function createProtectionSelection(
   start: Pick<GridCell, "x" | "y">,
-  _end: Pick<GridCell, "x" | "y"> = start,
-  _maxPixels = MAX_PROTECTION_PIXELS,
+  end: Pick<GridCell, "x" | "y"> = start,
+  maxPixels = MAX_PROTECTION_PIXELS,
 ): ProtectionSelection {
+  void end;
+  void maxPixels;
   const { originX, originY } = alignProtectionOrigin(start.x, start.y);
   return { originX, originY, width: PROTECTION_SIZE, height: PROTECTION_SIZE, pixelCount: MAX_PROTECTION_PIXELS };
 }

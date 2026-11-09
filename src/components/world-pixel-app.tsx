@@ -5,9 +5,10 @@ import { CloudOff, LockKeyhole } from "lucide-react";
 import { worldPixelApi } from "@/lib/api";
 import { hexToColorId } from "@/lib/palette";
 import { getSupabase, userToProfile } from "@/lib/supabase";
+import type { ReportCategory } from "@/lib/reports";
 import { ApiError, type GridCell, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type ToolMode, type UserProfile } from "@/lib/types";
 import { MapBoard } from "./map-board";
-import { CellCard, Header, HelpModal, LoginModal, ProtectionModal, ToolDock } from "./ui";
+import { CellCard, Header, HelpModal, LoginModal, ProtectionModal, ReportModal, ToolDock } from "./ui";
 import { type TranslationKey, useI18n } from "@/lib/i18n";
 
 interface Toast { id: string; message: string; tone: "success" | "error" | "info"; }
@@ -26,11 +27,15 @@ export function WorldPixelApp() {
   const [purchaseStatus, setPurchaseStatus] = useState<"review" | "pending" | "confirmed" | "error">("review");
   const [loginOpen, setLoginOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [reportCell, setReportCell] = useState<GridCell | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [connected, setConnected] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const paintQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const lastPaintRequestRef = useRef(0);
+  const reportSubmittingRef = useRef(false);
 
   const toast = useCallback((message: string, tone: Toast["tone"] = "info") => {
     const id = crypto.randomUUID();
@@ -73,14 +78,14 @@ export function WorldPixelApp() {
   }, []);
 
   useEffect(() => {
-    void refreshPrivateState();
+    const initialRefresh = window.setTimeout(() => void refreshPrivateState(), 0);
     const supabase = getSupabase();
     const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
       setProfile(session ? userToProfile(session.user) : null);
       if (session) window.setTimeout(() => void worldPixelApi.getWallet().then((wallet) => setBalance(wallet.credits)).catch(() => setConnected(false)), 0);
       else setBalance(0);
     });
-    return () => subscription?.data.subscription.unsubscribe();
+    return () => { window.clearTimeout(initialRefresh); subscription?.data.subscription.unsubscribe(); };
   }, [refreshPrivateState]);
 
   const mergeCells = useCallback((incoming: GridCell[]) => {
@@ -137,6 +142,43 @@ export function WorldPixelApp() {
     } catch (error) { toast(errorMessage(error, "toast.areaUnavailable"), "error"); }
   }, [errorMessage, profile, t, toast]);
 
+  const openReport = useCallback((cell: GridCell) => {
+    if (!profile) {
+      toast(t("toast.reportLogin"), "info");
+      setLoginOpen(true);
+      return;
+    }
+    setReportError(null);
+    setReportCell(cell);
+  }, [profile, t, toast]);
+
+  const submitReport = useCallback(async (category: ReportCategory, reason: string) => {
+    if (!reportCell || reportSubmittingRef.current) return;
+    if (!profile) {
+      setReportCell(null);
+      toast(t("toast.reportLogin"), "info");
+      setLoginOpen(true);
+      return;
+    }
+    reportSubmittingRef.current = true;
+    setReportSubmitting(true);
+    setReportError(null);
+    try {
+      await worldPixelApi.submitReport({ targetType: "pixel", targetId: `${reportCell.x}:${reportCell.y}`, category, reason: reason.trim() });
+      setReportCell(null);
+      toast(t("toast.reportSent"), "success");
+    } catch (error) {
+      if (error instanceof ApiError && error.requestId) console.error("Report request failed", { requestId: error.requestId });
+      if (error instanceof ApiError && error.status === 400) setReportError(t("report.error.validation"));
+      else if (error instanceof ApiError && error.status === 401) setReportError(t("report.error.expired"));
+      else if (error instanceof ApiError && error.status === 429) setReportError(t("report.error.rateLimited"));
+      else setReportError(t("report.error.generic"));
+    } finally {
+      reportSubmittingRef.current = false;
+      setReportSubmitting(false);
+    }
+  }, [profile, reportCell, t, toast]);
+
   const confirmProtection = useCallback(async () => {
     if (!quote) return;
     setPurchaseStatus("pending");
@@ -153,7 +195,7 @@ export function WorldPixelApp() {
 
   const selectionPreview = useMemo<ProtectedArea[]>(() => {
     if (mode !== "protect" || !protectionDraft) return protectedAreas;
-    return [...protectedAreas, { id: "preview", ...protectionDraft, ownerId: profile?.id ?? "preview", ownerName: t("preview.selectedArea"), status: "active", expiresAt: new Date(Date.now() + 86400000).toISOString() }];
+    return [...protectedAreas, { id: "preview", ...protectionDraft, ownerId: profile?.id ?? "preview", ownerName: t("preview.selectedArea"), status: "active", expiresAt: "9999-12-31T23:59:59.999Z" }];
   }, [mode, profile, protectedAreas, protectionDraft, t]);
 
   return (
@@ -162,12 +204,13 @@ export function WorldPixelApp() {
       <MapBoard mode={mode} cells={cells} protectedAreas={selectionPreview} selectedCell={selectedCell} brushColor={color} canPaint={Boolean(profile)} onCellSelect={setSelectedCell} onPaint={handlePaint} onProtectPreview={setProtectionDraft} onProtectSelect={handleProtect} onChunksLoaded={mergeCells} onConnectionChange={setConnected} />
       <div className="hero-copy"><span className="eyebrow">{t("hero.eyebrow")}</span><h1>{t("hero.titleStart")}<br /><em>{t("hero.titleEnd")}</em></h1><p>{t("hero.description")}</p></div>
       <ToolDock mode={mode} onMode={(nextMode) => { setMode(nextMode); if (nextMode !== "protect") setProtectionDraft(null); }} color={color} onColor={setColor} />
-      {selectedCell && <CellCard cell={selectedCell} onClose={() => setSelectedCell(null)} />}
+      {selectedCell && <CellCard cell={selectedCell} onClose={() => setSelectedCell(null)} onReport={() => openReport(selectedCell)} />}
       {!connected && <div className="connection-warning"><CloudOff size={17} /> {t("connection.reconnecting")}</div>}
       <div className="map-legend"><span><i className="free" /> {t("legend.free")}</span><span><LockKeyhole size={13} /> {t("legend.protected")}</span></div>
       <div className="toast-region" aria-live="polite">{toasts.map((item) => <div key={item.id} className={`toast ${item.tone}`}>{item.message}</div>)}</div>
       {loginOpen && <LoginModal loading={loginLoading} onClose={() => setLoginOpen(false)} onSubmit={(email) => { setLoginLoading(true); void worldPixelApi.signIn(email).then(() => { setLoginOpen(false); toast(t("toast.checkEmail"), "success"); }).catch((error) => toast(errorMessage(error, "toast.loginFailed"), "error")).finally(() => setLoginLoading(false)); }} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {reportCell && <ReportModal cell={reportCell} submitting={reportSubmitting} submitError={reportError} onClose={() => { if (!reportSubmitting) { setReportCell(null); setReportError(null); } }} onSubmit={submitReport} />}
       {quote && <ProtectionModal quote={quote} status={purchaseStatus} onClose={() => { setQuote(null); setProtectionDraft(null); }} onConfirm={confirmProtection} />}
     </main>
   );
