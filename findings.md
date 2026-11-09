@@ -28,3 +28,5 @@
 - Checkout está deliberadamente indisponível em produção e não será ativado no frontend.
 - `src/logo/logoMaior.png` tem 2172×724 com transparência e é a versão horizontal adequada para o header.
 - `src/logo/logoMenor.png` tem 1254×1254 com transparência e é a versão quadrada adequada para favicon/ícone do aplicativo.
+- A dica de caneta capacitiva pode ser controlada por `@media (pointer: coarse)`, evitando exibi-la em desktops.
+- O MapLibre expõe `MapTouchEvent` com `point`, `lngLat`, `points` e `preventDefault`; pintura/proteção precisam desses eventos além dos eventos de mouse.

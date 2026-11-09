@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
-import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { densifyBrushPoints, distanceBetween, drawSmoothBrushStroke, type BrushPoint } from "@/lib/brush";
 import { cellToBounds, createProtectionSelection, interpolateCellLine, lngLatToCell, MIN_PAINT_ZOOM, visibleChunkIds } from "@/lib/grid";
 import type { GridCell, MapBounds, ProtectedArea, ProtectionSelection, ToolMode } from "@/lib/types";
@@ -221,7 +221,8 @@ export function MapBoard({
       clearTimeout(debounce);
       debounce = setTimeout(() => void loadViewport(map), 180);
     });
-    map.on("mousemove", (event: MapMouseEvent) => {
+    type DrawEvent = Pick<MapMouseEvent | MapTouchEvent, "lngLat" | "point" | "preventDefault">;
+    const moveInteraction = (event: DrawEvent) => {
       const base = lngLatToCell(event.lngLat.lng, event.lngLat.lat);
       setCursorCell({ ...base, color: cellsRef.current.get(`${base.x}:${base.y}`)?.color ?? "#18283b" });
       if (painting) paintTowards(base);
@@ -234,7 +235,8 @@ export function MapBoard({
         }
       }
       if (protectionStart) handlersRef.current.onProtectPreview(createProtectionSelection(protectionStart, base));
-    });
+    };
+    map.on("mousemove", moveInteraction);
     let painting = false;
     let lastPaintCell: Pick<GridCell, "x" | "y"> | null = null;
     let paintedInStroke = new Set<string>();
@@ -267,11 +269,10 @@ export function MapBoard({
       }
     };
 
-    map.on("mousedown", (event: MapMouseEvent) => {
+    const startInteraction = (event: DrawEvent) => {
       if (
         modeRef.current === "protect" &&
-        map.getZoom() >= MIN_PAINT_ZOOM &&
-        event.originalEvent.button === 0
+        map.getZoom() >= MIN_PAINT_ZOOM
       ) {
         event.preventDefault();
         map.dragPan.disable();
@@ -297,8 +298,20 @@ export function MapBoard({
       lastBrushScreenPoint = { x: event.point.x, y: event.point.y };
       scheduleBrushRender();
       paintTowards(lngLatToCell(event.lngLat.lng, event.lngLat.lat));
+    };
+    map.on("mousedown", (event: MapMouseEvent) => {
+      if (event.originalEvent.button === 0) startInteraction(event);
     });
-    const finishInteraction = (event?: MapMouseEvent) => {
+    map.on("touchstart", (event: MapTouchEvent) => {
+      if (event.points.length === 1) startInteraction(event);
+    });
+    map.on("touchmove", (event: MapTouchEvent) => {
+      if (event.points.length === 1 && (painting || protectionStart)) {
+        event.preventDefault();
+        moveInteraction(event);
+      }
+    });
+    const finishInteraction = (event?: Pick<MapMouseEvent | MapTouchEvent, "lngLat">) => {
       if (protectionStart && event) {
         const selection = createProtectionSelection(protectionStart, lngLatToCell(event.lngLat.lng, event.lngLat.lat));
         handlersRef.current.onProtectPreview(selection);
@@ -318,6 +331,8 @@ export function MapBoard({
       window.setTimeout(() => { brushStrokes.shift(); scheduleBrushRender(); }, 1800);
     };
     map.on("mouseup", finishInteraction);
+    map.on("touchend", finishInteraction);
+    map.on("touchcancel", () => finishInteraction());
     map.on("mouseout", () => {
       protectionStart = null;
       finishInteraction();
@@ -360,6 +375,7 @@ export function MapBoard({
       {mode === "protect" && zoom >= MIN_PAINT_ZOOM && (
         <div className="zoom-hint">{t("map.protectHint")}</div>
       )}
+      {mode !== "navigate" && <div className="touch-stylus-hint" role="status">{t("map.stylusHint")}</div>}
       {cursorCell && zoom >= MIN_PAINT_ZOOM && (
         <div className="coordinates" aria-hidden="true">{cursorCell.x}, {cursorCell.y}</div>
       )}

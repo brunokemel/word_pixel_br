@@ -25,7 +25,7 @@ export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
         {profile ? (
           <button className="profile-button" onClick={onLogout} title={t("header.logout")}><span>{profile.displayName.slice(0, 1).toUpperCase()}</span><b>{profile.displayName}</b><LogOut size={16} /></button>
         ) : (
-          <button className="primary-button compact" onClick={onLogin}><LogIn size={17} /> {t("header.login")}</button>
+          <button className="primary-button compact" onClick={onLogin}><LogIn size={17} /><span className="button-label">{t("header.login")}</span></button>
         )}
       </div>
     </header>

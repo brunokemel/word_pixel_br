@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Publicar a identidade visual oficial no próximo deploy.
+Validar em aparelhos físicos após o próximo deploy e ajustar casos específicos, se encontrados.
 
 ## Current Phase
-Concluído no código; pronto para commit e deploy.
+Concluído no código; pronto para commit e teste em dispositivos físicos.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -67,6 +67,14 @@ Concluído no código; pronto para commit e deploy.
 - [x] Usar `logoMenor.png` como ícone/fav icon do navegador
 - [x] Validar transparência, typecheck, testes e build
 
+### Phase 10 — Responsividade touch
+**Status:** complete
+- [x] Ajustar header, ferramentas, paleta, modais e painéis para telas pequenas e tablets
+- [x] Respeitar safe areas, orientação paisagem e alvos de toque
+- [x] Exibir orientação de caneta capacitiva apenas em dispositivos touch
+- [x] Traduzir a orientação em português, inglês e espanhol
+- [x] Executar typecheck, testes e build de produção
+
 ## Decisions Made
 | Decision | Rationale |
 |---|---|
@@ -79,6 +87,7 @@ Concluído no código; pronto para commit e deploy.
 | API HTTP no Render + Supabase Auth no navegador | Corresponde ao contrato real: a API recebe Bearer do Supabase e permanece autoritativa para dados do mapa |
 | Proteção fixa 16×16 e paleta numérica de 32 cores | São invariantes validados pelo backend; o front não deve oferecer payloads que serão rejeitados |
 | PNG horizontal no header e PNG quadrado nos metadados | Reutiliza os ativos oficiais, preserva transparência e deixa a otimização do header a cargo do Next Image |
+| Media queries por largura, altura, orientação e tipo de ponteiro | Cobre celular, tablet, paisagem, safe areas e touch sem depender de detecção frágil por user agent |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |

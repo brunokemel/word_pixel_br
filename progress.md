@@ -39,3 +39,8 @@
 - Iniciada a Phase 9 para aplicar os PNGs oficiais da pasta `src/logo` ao header e à aba do navegador.
 - Logo horizontal aplicada ao header responsivo e logo quadrada registrada como favicon/Apple icon.
 - Typecheck, 13 testes e build passaram; HTML de produção confirmou os assets otimizados e os links de ícone.
+- Iniciada a Phase 10 para ampliar a responsividade e orientar o uso de caneta capacitiva em aparelhos touch.
+- Header, paleta rolável, ferramentas, painéis, modais, safe areas e paisagem ajustados para celulares e tablets.
+- Orientação de caneta capacitiva adicionada em pt/en/es e limitada a dispositivos com ponteiro touch.
+- Pintura e proteção agora respondem a eventos touch de um ponto; gestos de dois dedos permanecem livres para zoom.
+- Typecheck, 13 testes e build de produção passaram após a Phase 10.
