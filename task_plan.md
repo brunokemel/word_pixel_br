@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Validar o fluxo contra a API publicada após o próximo deploy.
+Validar visualmente a paleta no próximo deploy.
 
 ## Current Phase
-Concluído no código; pronto para revisão e deploy, sem commit.
+Concluído no código; pronto para revisão, sem commit.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -83,6 +83,14 @@ Concluído no código; pronto para revisão e deploy, sem commit.
 - [x] Traduzir todo o fluxo em português, inglês e espanhol
 - [x] Cobrir abertura/fechamento, validação, payload, autenticação e respostas com testes
 - [x] Configurar e executar lint, typecheck, testes e build
+
+### Phase 12 — Paleta por famílias de tons
+**Status:** complete
+- [x] Agrupar os 32 IDs em neutros, quentes, natureza e frios
+- [x] Criar seletor visual de família mantendo o payload numérico atual
+- [x] Traduzir os nomes das famílias em pt/en/es
+- [x] Garantir por teste que todos os IDs aparecem exatamente uma vez
+- [x] Executar lint, typecheck, testes e build
 
 ## Decisions Made
 | Decision | Rationale |

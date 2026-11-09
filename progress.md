@@ -51,3 +51,6 @@
 - Erros 400/401/429/rede/500 tratados; request ID é registrado no console e sucesso fecha/limpa o formulário sem alterar o desenho.
 - Fluxo traduzido em pt/en/es e ajustado para celular e desktop.
 - ESLint oficial do Next 16 configurado; lint, typecheck, 22 testes e build de produção passaram.
+- Iniciada a Phase 12 para organizar a paleta fixa da API por famílias de tons, sem alterar o contrato numérico.
+- Phase 12 concluída: 32 cores organizadas em quatro famílias traduzidas, layout responsivo e IDs da API preservados.
+- Validação final passou: lint, typecheck, 24 testes e build de produção com Next.js 16.4.5.

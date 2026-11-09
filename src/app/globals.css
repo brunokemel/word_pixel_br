@@ -71,17 +71,15 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
 .tool-tabs button { height: 48px; min-width: 74px; padding: 0 12px; display: flex; align-items: center; justify-content: center; gap: 7px; background: transparent; border: 0; border-radius: 11px; color: #8fa0b1; cursor: pointer; font-size: 11px; font-weight: 800; }
 .tool-tabs button.active { background: rgba(255,255,255,.1); color: white; }
 .tool-tabs button.active svg { color: var(--pink); }
-.palette { display: grid; grid-template-columns: repeat(6, 24px); gap: 4px; padding: 0 4px 0 12px; border-left: 1px solid var(--line); transition: opacity .2s; }
-.palette.muted { opacity: .62; }
+.palette-panel { min-width: 226px; padding: 0 4px 0 12px; border-left: 1px solid var(--line); transition: opacity .2s; }
+.palette-panel.muted { opacity: .62; }
+.tone-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 6px; }
+.tone-tabs button { min-width: 0; padding: 3px 5px; border: 0; border-radius: 6px; background: transparent; color: #8799ab; cursor: pointer; font-size: 9px; font-weight: 800; line-height: 1.15; }
+.tone-tabs button:hover, .tone-tabs button.active { background: rgba(255,255,255,.1); color: white; }
+.tone-tabs button.active { box-shadow: inset 0 -2px var(--pink); }
+.palette { display: grid; grid-template-columns: repeat(8, 24px); justify-content: space-between; gap: 4px; }
 .palette button { width: 24px; height: 18px; padding: 0; border-radius: 5px; border: 1px solid rgba(255,255,255,.16); background: var(--swatch); cursor: pointer; }
 .palette button.selected { box-shadow: 0 0 0 2px #07111f, 0 0 0 4px white; transform: scale(1.04); }
-.color-tool { position: relative; width: 24px; height: 18px; display: grid; place-items: center; padding: 0; border-radius: 5px; border: 1px solid rgba(255,255,255,.22); color: white; cursor: pointer; overflow: hidden; }
-.custom-color { background: conic-gradient(#ff365f, #ffd43b, #37d67a, #36a8ff, #9b5cff, #ff365f); }
-.custom-color::after { content: ""; position: absolute; inset: 4px; border-radius: 3px; background: rgba(7,17,31,.72); }
-.custom-color svg { position: relative; z-index: 1; }
-.custom-color input { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.eyedropper { background: linear-gradient(145deg, #26394d, #101d2c)!important; }
-.color-tool.selected { box-shadow: 0 0 0 2px #07111f, 0 0 0 4px white; transform: scale(1.04); }
 
 .cell-card { position: absolute; z-index: 12; right: 20px; top: 88px; width: 238px; padding: 19px; background: var(--panel); border: 1px solid var(--line); border-radius: 17px; backdrop-filter: blur(17px); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
 .close-button { position: absolute; top: 10px; right: 10px; width: 29px; height: 29px; }
@@ -163,6 +161,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
   .hero-copy h1 { font-size: clamp(44px, 7vw, 64px); max-width: 520px; }
   .tool-dock { max-width: calc(100vw - 28px); }
   .tool-tabs button { min-width: 66px; padding-inline: 9px; }
+  .palette-panel { min-width: 210px; }
   .palette { grid-template-columns: repeat(8, 22px); }
   .palette button { width: 22px; }
 }
@@ -196,8 +195,11 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
   .tool-dock { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: max(9px, env(safe-area-inset-bottom)); transform: none; display: block; padding: 6px; border-radius: 15px; }
   .tool-tabs { justify-content: stretch; }
   .tool-tabs button { flex: 1; min-width: 0; height: 44px; }
-  .palette { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; border-left: 0; border-top: 1px solid var(--line); margin-top: 5px; padding: 9px 5px 5px; scroll-snap-type: x proximity; }
-  .palette button { flex: 0 0 30px; width: 30px; height: 28px; scroll-snap-align: start; }
+  .palette-panel { min-width: 0; border-left: 0; border-top: 1px solid var(--line); margin-top: 5px; padding: 7px 5px 4px; }
+  .tone-tabs { margin-bottom: 7px; }
+  .tone-tabs button { min-height: 25px; font-size: 10px; }
+  .palette { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .palette button { width: 100%; height: 28px; }
   .cell-card { top: auto; right: 10px; left: 10px; bottom: 132px; width: auto; padding: 14px; }
   .cell-card dl { grid-template-columns: 1fr 1fr; }
   .cell-card dl div { display: block; border-bottom: 0; padding: 0; }

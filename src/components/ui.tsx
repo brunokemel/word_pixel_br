@@ -5,11 +5,9 @@ import { Brush, Compass, Flag, Globe2, HelpCircle, LockKeyhole, LogIn, LogOut, W
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import type { GridCell, ProtectionQuote, ToolMode, UserProfile } from "@/lib/types";
 import { localeLabels, type Locale, useI18n } from "@/lib/i18n";
-import { COLOR_PALETTE } from "@/lib/palette";
+import { COLOR_GROUPS, COLOR_PALETTE, colorGroupIdFor, type ColorGroupId } from "@/lib/palette";
 import { reportCategories, type ReportCategory, validateReport } from "@/lib/reports";
 import logoMaior from "@/logo/logoMaior.png";
-
-export const COLORS = [...COLOR_PALETTE];
 
 export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
   profile: UserProfile | null; balance: number; onLogin: () => void; onLogout: () => void; onHelp: () => void;
@@ -35,7 +33,13 @@ export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
 
 export function ToolDock({ mode, onMode, color, onColor }: { mode: ToolMode; onMode: (mode: ToolMode) => void; color: string; onColor: (color: string) => void }) {
   const { t } = useI18n();
-  const selectColor = (nextColor: string) => { onColor(nextColor.toLowerCase()); onMode("paint"); };
+  const [activeColorGroup, setActiveColorGroup] = useState<ColorGroupId>(() => colorGroupIdFor(color));
+  const activeGroup = COLOR_GROUPS.find((group) => group.id === activeColorGroup) ?? COLOR_GROUPS[0];
+  const selectColor = (nextColor: string) => {
+    setActiveColorGroup(colorGroupIdFor(nextColor));
+    onColor(nextColor.toLowerCase());
+    onMode("paint");
+  };
   const tools: { id: ToolMode; label: string; icon: ReactNode }[] = [
     { id: "navigate", label: t("tools.navigate"), icon: <Compass size={19} /> },
     { id: "paint", label: t("tools.paint"), icon: <Brush size={19} /> },
@@ -46,8 +50,20 @@ export function ToolDock({ mode, onMode, color, onColor }: { mode: ToolMode; onM
       <div className="tool-tabs">
         {tools.map((tool) => <button key={tool.id} className={mode === tool.id ? "active" : ""} onClick={() => onMode(tool.id)} aria-pressed={mode === tool.id}>{tool.icon}<span>{tool.label}</span></button>)}
       </div>
-      <div className={`palette ${mode !== "paint" ? "muted" : ""}`} aria-label={t("palette.label")}>
-        {COLORS.map((item) => <button key={item} aria-label={t("palette.select", { color: item })} aria-pressed={color === item} onClick={() => selectColor(item)} style={{ "--swatch": item } as CSSProperties} className={color === item ? "selected" : ""} />)}
+      <div className={`palette-panel ${mode !== "paint" ? "muted" : ""}`}>
+        <div className="tone-tabs" role="tablist" aria-label={t("palette.groups")}>
+          {COLOR_GROUPS.map((group) => (
+            <button key={group.id} type="button" role="tab" aria-selected={activeColorGroup === group.id} className={activeColorGroup === group.id ? "active" : ""} onClick={() => setActiveColorGroup(group.id)}>
+              {t(`palette.group.${group.id}`)}
+            </button>
+          ))}
+        </div>
+        <div className="palette" role="tabpanel" aria-label={`${t("palette.label")} — ${t(`palette.group.${activeGroup.id}`)}`}>
+          {activeGroup.colorIds.map((colorId) => {
+            const item = COLOR_PALETTE[colorId];
+            return <button key={colorId} aria-label={t("palette.select", { color: item })} aria-pressed={color === item} onClick={() => selectColor(item)} style={{ "--swatch": item } as CSSProperties} className={color === item ? "selected" : ""} />;
+          })}
+        </div>
       </div>
     </div>
   );

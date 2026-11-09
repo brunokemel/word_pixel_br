@@ -24,8 +24,11 @@ const pt = {
   "tools.protect": "Proteger",
   "palette.label": "Paleta de cores",
   "palette.select": "Selecionar cor {color}",
-  "palette.custom": "Escolher qualquer cor",
-  "palette.eyedropper": "Capturar uma cor da tela",
+  "palette.groups": "Famílias de tons",
+  "palette.group.neutral": "Neutros",
+  "palette.group.warm": "Quentes",
+  "palette.group.nature": "Natureza",
+  "palette.group.cool": "Frios",
   "map.label": "Mapa-múndi interativo de pixels",
   "map.loading": "Carregando o mundo…",
   "map.zoomPaint": "Aproxime mais para pintar",
@@ -146,7 +149,7 @@ type Catalog = Record<TranslationKey, string>;
 
 const en: Catalog = {
   "language.label": "Language", "header.live": "LIVE", "header.help": "How it works", "header.balance": "balance", "header.logout": "Log out", "header.login": "Log in",
-  "tools.label": "Map tools", "tools.navigate": "Explore", "tools.paint": "Paint", "tools.protect": "Protect", "palette.label": "Color palette", "palette.select": "Select color {color}", "palette.custom": "Choose any color", "palette.eyedropper": "Pick a color from the screen",
+  "tools.label": "Map tools", "tools.navigate": "Explore", "tools.paint": "Paint", "tools.protect": "Protect", "palette.label": "Color palette", "palette.select": "Select color {color}", "palette.groups": "Tone families", "palette.group.neutral": "Neutrals", "palette.group.warm": "Warm", "palette.group.nature": "Nature", "palette.group.cool": "Cool",
   "map.label": "Interactive world pixel map", "map.loading": "Loading the world…", "map.zoomPaint": "Zoom in to paint", "map.zoomProtect": "Zoom in to protect", "map.protectHint": "Click to select a 16 × 16 protection block", "map.stylusHint": "For greater precision, use a capacitive stylus.",
   "hero.eyebrow": "ONE MAP · MILLIONS OF STORIES", "hero.titleStart": "Leave your mark", "hero.titleEnd": "on the world.", "hero.description": "Zoom in, choose a color and turn one pixel into part of something huge.",
   "legend.free": "available", "legend.protected": "protected", "connection.reconnecting": "Reconnecting to the map…",
@@ -163,7 +166,7 @@ const en: Catalog = {
 
 const es: Catalog = {
   "language.label": "Idioma", "header.live": "EN VIVO", "header.help": "Cómo funciona", "header.balance": "saldo", "header.logout": "Salir", "header.login": "Entrar",
-  "tools.label": "Herramientas del mapa", "tools.navigate": "Explorar", "tools.paint": "Pintar", "tools.protect": "Proteger", "palette.label": "Paleta de colores", "palette.select": "Seleccionar color {color}", "palette.custom": "Elegir cualquier color", "palette.eyedropper": "Capturar un color de la pantalla",
+  "tools.label": "Herramientas del mapa", "tools.navigate": "Explorar", "tools.paint": "Pintar", "tools.protect": "Proteger", "palette.label": "Paleta de colores", "palette.select": "Seleccionar color {color}", "palette.groups": "Familias de tonos", "palette.group.neutral": "Neutros", "palette.group.warm": "Cálidos", "palette.group.nature": "Naturaleza", "palette.group.cool": "Fríos",
   "map.label": "Mapamundi interactivo de píxeles", "map.loading": "Cargando el mundo…", "map.zoomPaint": "Acércate para pintar", "map.zoomProtect": "Acércate para proteger", "map.protectHint": "Haz clic para seleccionar un bloque de protección 16 × 16", "map.stylusHint": "Para mayor precisión, usa un lápiz capacitivo.",
   "hero.eyebrow": "UN MAPA · MILLONES DE HISTORIAS", "hero.titleStart": "Deja tu huella", "hero.titleEnd": "en el mundo.", "hero.description": "Acércate, elige un color y convierte un píxel en parte de algo enorme.",
   "legend.free": "libre", "legend.protected": "protegido", "connection.reconnecting": "Reconectando al mapa…",
