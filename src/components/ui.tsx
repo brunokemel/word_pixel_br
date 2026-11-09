@@ -16,7 +16,7 @@ export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
   const { locale, setLocale, t } = useI18n();
   return (
     <header className="topbar">
-      <div className="brand"><Image className="brand-logo" src={logoMaior} alt="World Pixel" priority /><em>beta</em></div>
+      <div className="brand"><Image className="brand-logo" src={logoMaior} alt="World Pixel" priority /></div>
       <div className="topbar-actions">
         <div className="live-pill"><span /> {t("header.live")}</div>
         <label className="language-select" aria-label={t("language.label")}><Globe2 size={16} /><select value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>{Object.entries(localeLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
