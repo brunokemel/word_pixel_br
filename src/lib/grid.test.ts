@@ -26,11 +26,9 @@ describe("grade geográfica", () => {
     ]);
   });
 
-  it("limita uma seleção retangular a 256 pixels preservando a direção", () => {
+  it("alinha a proteção em um bloco fixo de 16×16", () => {
     const selection = createProtectionSelection({ x: 100, y: 100 }, { x: 140, y: 130 });
-    expect(selection.pixelCount).toBeLessThanOrEqual(256);
-    expect(selection.originX).toBe(100);
-    expect(selection.originY).toBe(100);
+    expect(selection).toEqual({ originX: 96, originY: 96, width: 16, height: 16, pixelCount: 256 });
   });
 
   it("detecta sobreposição entre áreas retangulares", () => {

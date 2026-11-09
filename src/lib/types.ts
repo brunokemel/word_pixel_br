@@ -6,6 +6,9 @@ export interface GridCell {
   lng: number;
   lat: number;
   color: string;
+  colorId?: number;
+  version?: number;
+  authorId?: string;
   updatedAt?: string;
   authorName?: string;
   protectedBy?: string;
@@ -23,7 +26,7 @@ export interface PixelChunk {
 export interface PixelChange {
   cellX: number;
   cellY: number;
-  color: string;
+  color: number;
   idempotencyKey: string;
 }
 
@@ -65,7 +68,7 @@ export interface ProtectionQuote {
   width: number;
   height: number;
   pixelCount: number;
-  priceInCents: number;
+  priceCredits: number;
   durationDays: 30;
   validUntil: string;
 }
@@ -84,11 +87,17 @@ export type ApiErrorCode =
   | "CELL_NOT_LAND"
   | "AREA_PROTECTED"
   | "INSUFFICIENT_CREDITS"
-  | "CONFLICT"
+  | "AREA_CONFLICT"
+  | "IDEMPOTENCY_CONFLICT"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "INTERNAL_ERROR"
+  | "NETWORK_ERROR"
+  | "CONFIGURATION_ERROR"
   | "VALIDATION_ERROR";
 
 export class ApiError extends Error {
-  constructor(public code: ApiErrorCode, message: string) {
+  constructor(public code: ApiErrorCode, message: string, public requestId?: string, public status?: number) {
     super(message);
     this.name = "ApiError";
   }
@@ -107,11 +116,11 @@ export interface WorldPixelApi {
   getVisibleChunks(bounds: MapBounds, zoom: number): Promise<PixelChunk[]>;
   paintPixel(change: PixelChange): Promise<GridCell>;
   quoteProtection(selection: ProtectionSelection): Promise<ProtectionQuote>;
-  purchaseProtection(quoteId: string): Promise<ProtectedArea>;
+  purchaseProtection(selection: ProtectionSelection, idempotencyKey: string): Promise<ProtectedArea>;
   getProtection(id: string): Promise<ProtectedArea | null>;
   getWallet(): Promise<WalletBalance>;
   getProfile(): Promise<UserProfile | null>;
-  signIn(email: string): Promise<UserProfile>;
+  signIn(email: string): Promise<void>;
   signOut(): Promise<void>;
   subscribe(chunkIds: string[], listener: (event: RealtimeEvent) => void): Unsubscribe;
   isLandCell(x: number, y: number): boolean;

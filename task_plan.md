@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Entregar o pincel contínuo validado e orientar o teste visual local.
+Configurar as URLs e chaves públicas reais na Vercel e executar o teste ponta a ponta contra o Render.
 
 ## Current Phase
-Concluído.
+Concluído no código; configuração externa e teste ponta a ponta dependem das credenciais públicas reais.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -52,6 +52,15 @@ Concluído.
 - [x] Persistir as células atravessadas sem bloquear o feedback visual
 - [x] Validar desempenho, typecheck, testes e build
 
+### Phase 8 — Integração com API real no Render
+**Status:** complete
+- [x] Configurar Supabase Auth e cliente HTTP central com envelopes, timeout e request ID
+- [x] Adaptar grade 65536×32768, chunks 64 e paleta fixa de 32 cores
+- [x] Integrar mapa público, pintura autenticada, carteira e proteção fixa 16×16
+- [x] Implementar restauração de sessão, logout e tratamento dos erros reais
+- [x] Atualizar configuração, documentação, testes e checklist de implantação
+- [x] Executar typecheck, testes e build de produção
+
 ## Decisions Made
 | Decision | Rationale |
 |---|---|
@@ -61,6 +70,8 @@ Concluído.
 | Catálogo local tipado com React Context | Evita dependência adicional e deixa a futura migração para rotas localizadas opcional |
 | Limite inicial de 256 pixels por compra | Preserva o teto econômico do bloco 16×16 atual, permitindo formatos retangulares livres |
 | Canvas 2D separado para o traço ativo | Evita esperar React, MapLibre ou rede; o feedback aparece no mesmo frame e as células continuam sendo persistidas em paralelo |
+| API HTTP no Render + Supabase Auth no navegador | Corresponde ao contrato real: a API recebe Bearer do Supabase e permanece autoritativa para dados do mapa |
+| Proteção fixa 16×16 e paleta numérica de 32 cores | São invariantes validados pelo backend; o front não deve oferecer payloads que serão rejeitados |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -72,3 +83,4 @@ Concluído.
 | Comando combinado de commit e `git push` foi bloqueado pela política do ambiente | 1 | Nenhuma etapa executou; commit local será feito separadamente e o push ficará para o terminal do usuário |
 | Navegador interno indisponível para QA visual do pincel | 1 | Mantidas validações automatizadas e solicitado teste visual local após o handoff |
 | Checagem HTTP recusada porque o servidor dev estava parado | 1 | Iniciar instância temporária em porta isolada, validar e encerrar |
+| Browser interno indisponível na QA final da integração | 1 | Servidor local validado por HTTP 200; inspeção visual permanece como teste manual recomendado |

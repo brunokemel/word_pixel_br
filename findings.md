@@ -21,3 +21,8 @@
 - Para manter o traço alinhado durante zoom e navegação, os pontos concluídos serão armazenados como longitude/latitude e reprojetados pelo MapLibre antes de cada desenho.
 - O navegador interno não está disponível nesta sessão; a geometria do pincel foi coberta por testes unitários e o bundle de produção compilou sem erros.
 - A persistência foi agrupada por movimento: uma atualização otimista por lote e chamadas assíncronas paralelas, sem bloquear o Canvas.
+- `CHECKLIST_FRONT_API_RENDER.txt` documenta a API real: rotas sem `/api` ou `/v1`, envelopes `{ ok, data, request_id }`, autenticação Bearer Supabase e erros com `request_id`.
+- A API usa grade 65536×32768, chunks 64, paleta numérica 0..31 e proteções obrigatoriamente alinhadas em blocos 16×16.
+- Antes da Phase 8, o frontend usava `MockWorldPixelApi`, grade 720×360, cores hex arbitrárias e seleção retangular livre; esses contratos foram substituídos pelos invariantes reais da API.
+- A API não oferece perfil HTTP nem listagem de proteções por viewport. Perfil virá da sessão Supabase; o front só poderá desenhar proteções compradas na sessão até o backend expor uma rota de listagem.
+- Checkout está deliberadamente indisponível em produção e não será ativado no frontend.

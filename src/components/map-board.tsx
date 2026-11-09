@@ -6,7 +6,7 @@ import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent } from "maplibre-
 import { densifyBrushPoints, distanceBetween, drawSmoothBrushStroke, type BrushPoint } from "@/lib/brush";
 import { cellToBounds, createProtectionSelection, interpolateCellLine, lngLatToCell, MIN_PAINT_ZOOM, visibleChunkIds } from "@/lib/grid";
 import type { GridCell, MapBounds, ProtectedArea, ProtectionSelection, ToolMode } from "@/lib/types";
-import { worldPixelApi } from "@/lib/mock-api";
+import { worldPixelApi } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
 maplibregl.setWorkerUrl(
@@ -60,6 +60,7 @@ export function MapBoard({
   const brushCanvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const viewportRequestRef = useRef(0);
   const cellsRef = useRef(cells);
   const modeRef = useRef(mode);
   const brushColorRef = useRef(brushColor);
@@ -94,16 +95,27 @@ export function MapBoard({
 
   const loadViewport = useCallback(async (map: MapLibreMap) => {
     const bounds = getMapBounds(map);
+    const chunkIds = visibleChunkIds(bounds);
+    const requestId = ++viewportRequestRef.current;
+    if (chunkIds.length === 0) {
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      handlersRef.current.onConnectionChange(true);
+      setLoading(false);
+      return;
+    }
     try {
       const chunks = await worldPixelApi.getVisibleChunks(bounds, map.getZoom());
+      if (requestId !== viewportRequestRef.current) return;
       handlersRef.current.onChunksLoaded(chunks.flatMap((chunk) => chunk.cells));
       unsubscribeRef.current?.();
-      unsubscribeRef.current = worldPixelApi.subscribe(visibleChunkIds(bounds), (event) => {
+      unsubscribeRef.current = worldPixelApi.subscribe(chunkIds, (event) => {
         handlersRef.current.onConnectionChange(event.connected !== false);
         if (event.cell) handlersRef.current.onChunksLoaded([event.cell]);
       });
       handlersRef.current.onConnectionChange(true);
     } catch {
+      if (requestId !== viewportRequestRef.current) return;
       handlersRef.current.onConnectionChange(false);
     } finally {
       setLoading(false);
@@ -117,7 +129,9 @@ export function MapBoard({
       center: [-47.8, -15.7],
       zoom: 3.2,
       minZoom: 1.5,
-      maxZoom: 12,
+      maxZoom: 18,
+      renderWorldCopies: false,
+      maxBounds: [[-180, -85], [180, 85]],
       attributionControl: false,
       style: {
         version: 8,
@@ -153,28 +167,6 @@ export function MapBoard({
     type GeoBrushPoint = { lng: number; lat: number };
     type GeoBrushStroke = { color: string; points: GeoBrushPoint[] };
     const brushStrokes: GeoBrushStroke[] = [];
-    const brushStorageKey = "world-pixel-brush-strokes-v1";
-    try {
-      const stored = JSON.parse(window.localStorage.getItem(brushStorageKey) ?? "[]") as unknown;
-      if (Array.isArray(stored)) {
-        for (const candidate of stored.slice(-200)) {
-          if (
-            typeof candidate === "object" && candidate !== null &&
-            "color" in candidate && typeof candidate.color === "string" &&
-            "points" in candidate && Array.isArray(candidate.points)
-          ) {
-            const points = candidate.points.filter((point: unknown): point is GeoBrushPoint => (
-              typeof point === "object" && point !== null &&
-              "lng" in point && typeof point.lng === "number" && Number.isFinite(point.lng) &&
-              "lat" in point && typeof point.lat === "number" && Number.isFinite(point.lat)
-            ));
-            if (points.length > 0) brushStrokes.push({ color: candidate.color, points });
-          }
-        }
-      }
-    } catch {
-      window.localStorage.removeItem(brushStorageKey);
-    }
     let activeBrushStroke: GeoBrushStroke | null = null;
     let lastBrushScreenPoint: BrushPoint | null = null;
     let brushFrame: number | null = null;
@@ -276,8 +268,7 @@ export function MapBoard({
       if (
         modeRef.current === "protect" &&
         map.getZoom() >= MIN_PAINT_ZOOM &&
-        event.originalEvent.button === 0 &&
-        event.originalEvent.ctrlKey
+        event.originalEvent.button === 0
       ) {
         event.preventDefault();
         map.dragPan.disable();
@@ -299,7 +290,7 @@ export function MapBoard({
         points: [{ lng: event.lngLat.lng, lat: event.lngLat.lat }],
       };
       brushStrokes.push(activeBrushStroke);
-      if (brushStrokes.length > 200) brushStrokes.shift();
+      if (brushStrokes.length > 20) brushStrokes.shift();
       lastBrushScreenPoint = { x: event.point.x, y: event.point.y };
       scheduleBrushRender();
       paintTowards(lngLatToCell(event.lngLat.lng, event.lngLat.lat));
@@ -316,14 +307,12 @@ export function MapBoard({
         activeBrushStroke.points.push({ lng: event.lngLat.lng, lat: event.lngLat.lat });
         scheduleBrushRender();
       }
-      if (painting && activeBrushStroke) {
-        try { window.localStorage.setItem(brushStorageKey, JSON.stringify(brushStrokes)); } catch { /* armazenamento indisponível */ }
-      }
       painting = false;
       activeBrushStroke = null;
       lastBrushScreenPoint = null;
       lastPaintCell = null;
       paintedInStroke.clear();
+      window.setTimeout(() => { brushStrokes.shift(); scheduleBrushRender(); }, 1800);
     };
     map.on("mouseup", finishInteraction);
     map.on("mouseout", () => {

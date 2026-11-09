@@ -1,0 +1,323 @@
+CHECKLIST COMPLETO - FRONTEND -> API REAL NO RENDER
+Projeto: World Pixel API
+Atualizado em: 08/11/2026
+
+IMPORTANTE
+Este checklist foi montado a partir do codigo real deste repositorio. A URL publica
+do Render nao esta gravada no projeto: ela fica na variavel RENDER_API_URL do GitHub
+Actions. Substitua https://SUA-API.onrender.com pela URL real, sempre sem barra no fim.
+
+======================================================================
+1. DADOS QUE PRECISAM ESTAR EM MAOS
+======================================================================
+
+[ ] URL publica da API no Render:
+    https://SUA-API.onrender.com
+
+[ ] URL do projeto Supabase (a mesma configurada como SUPABASE_URL na API):
+    https://SEU-PROJETO.supabase.co
+
+[ ] Chave publica/anon (ou publishable key) do Supabase para o frontend.
+    NUNCA colocar service_role, DATABASE_URL ou PAYMENT_WEBHOOK_SECRET no front.
+
+[ ] URL exata de cada ambiente do frontend:
+    Local:    http://localhost:5173
+    Preview:  https://SEU-PREVIEW...
+    Producao: https://SEU-FRONT...
+
+[ ] Confirmar no Render que WORLD_PIXEL_ORIGINS contem todas essas origens,
+    separadas por virgula, sem caminho e sem barra final. Exemplo:
+    http://localhost:5173,https://app.exemplo.com
+
+[ ] Confirmar no Supabase Auth > URL Configuration o Site URL e todos os Redirect
+    URLs usados por login, OAuth, confirmacao de e-mail e recuperacao de senha.
+
+======================================================================
+2. CONFIGURACAO DO FRONTEND
+======================================================================
+
+[ ] Criar variaveis publicas conforme o framework. Exemplo para Vite:
+    VITE_API_URL=https://SUA-API.onrender.com
+    VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+    VITE_SUPABASE_ANON_KEY=SUA_CHAVE_PUBLICA
+
+[ ] Remover qualquer mock, localStorage ou estado fake que hoje substitua API para:
+    pinturas, carteira, protecoes, denuncias e pagamentos.
+
+[ ] Criar um cliente HTTP central. Regras:
+    - baseURL = VITE_API_URL sem barra final;
+    - enviar Accept: application/json;
+    - em POST, enviar Content-Type: application/json;
+    - em rotas privadas, enviar Authorization: Bearer <access_token>;
+    - opcionalmente enviar X-Request-Id com 1 a 64 caracteres [A-Za-z0-9._-];
+    - nao usar credentials: "include": a API nao usa cookies de sessao;
+    - aplicar timeout razoavel (30 a 90 s no primeiro acesso ao Render gratuito).
+
+[ ] Gerar idempotencyKey com crypto.randomUUID() para cada NOVA acao mutavel.
+    Em retry da MESMA acao, reutilizar a mesma chave. Nunca reaproveitar a chave
+    para outro payload.
+
+[ ] Tratar o formato de sucesso:
+    { "ok": true, "data": { ... }, "request_id": "uuid-ou-id" }
+
+[ ] Tratar o formato de erro:
+    {
+      "ok": false,
+      "error": {
+        "code": "CODIGO",
+        "message": "Mensagem publica",
+        "request_id": "uuid-ou-id"
+      }
+    }
+
+[ ] Guardar/exibir error.request_id em mensagens de suporte e logs.
+[ ] Nao assumir camelCase nas respostas: varios objetos vindos do PostgreSQL usam
+    snake_case, embora o payload enviado pelo frontend use camelCase.
+
+======================================================================
+3. AUTENTICACAO SUPABASE
+======================================================================
+
+[ ] Instalar e configurar @supabase/supabase-js no frontend com URL + chave publica.
+[ ] Implementar login/logout e restauracao de sessao ao recarregar a pagina.
+[ ] Antes de rota privada, obter session.access_token e enviar:
+    Authorization: Bearer <access_token>
+[ ] Escutar onAuthStateChange para atualizar token/usuario.
+[ ] Em 401 UNAUTHENTICATED, tentar obter/renovar a sessao uma vez; se continuar,
+    limpar estado privado e levar o usuario ao login.
+[ ] O backend valida issuer, audience "authenticated" e assinatura JWKS. Nao criar
+    JWT manualmente nem enviar anon key no header Authorization da API Node.
+[ ] Criar/atualizar perfil (display_name/avatar_url) pelo fluxo Supabase previsto no
+    produto. ATENCAO: esta API Node nao possui endpoints HTTP de perfil.
+
+======================================================================
+4. TESTE DE CONECTIVIDADE E CORS
+======================================================================
+
+[ ] Abrir no navegador ou testar:
+    GET https://SUA-API.onrender.com/health
+    Esperado: HTTP 200
+    { "ok": true, "service": "world-pixel-api" }
+
+[ ] Se /health retornar 500, verificar conexao DATABASE_URL/TRANSACTION_DATABASE_URL
+    e TLS do PostgreSQL no Render.
+
+[ ] Testar no proprio dominio do frontend (nao apenas Postman) uma chamada OPTIONS
+    e GET. O header Access-Control-Allow-Origin precisa ser exatamente a origem do
+    front. Se faltar, corrigir WORLD_PIXEL_ORIGINS no Render e redeploy/restart.
+
+[ ] Lembrar que /health nao passa pelo CORS do modulo World Pixel. Para testar CORS
+    de verdade, chamar GET /map/chunks a partir do navegador.
+
+[ ] Render gratuito pode dormir. Exibir estado "Conectando ao servidor..." e permitir
+    retry. O workflow .github/workflows/keep-render-awake.yml depende da variavel de
+    repositorio RENDER_API_URL estar configurada.
+
+======================================================================
+5. ENDPOINTS REAIS PARA INTEGRAR
+======================================================================
+
+5.1 GET /map/chunks (PUBLICO)
+
+[ ] Chamar:
+    /map/chunks?bbox=minLng,minLat,maxLng,maxLat&zoom=0..22
+
+    Exemplo:
+    GET /map/chunks?bbox=-0.1,-0.1,0.1,0.1&zoom=10
+
+[ ] Regras:
+    - longitude entre -180 e 180; latitude entre -90 e 90;
+    - minLng < maxLng e minLat < maxLat;
+    - zoom inteiro de 0 a 22;
+    - bbox pode abranger no maximo 256 chunks;
+    - resposta limitada a 50.000 celulas;
+    - limite HTTP atual: 120 consultas/minuto por IP/processo.
+
+[ ] Resposta principal:
+    data.chunks[] = {
+      chunkX, chunkY,
+      cells: [{ x, y, color, authorId, version, updatedAt }]
+    }
+    data.grid = { width: 65536, height: 32768, chunkSize: 64 }
+    data.authoritative = true
+
+[ ] O banco e esparso: celula ausente em chunks significa "nao pintada".
+[ ] Debounce ao mover/zoom do mapa, cancelar requests antigos com AbortController e
+    ignorar respostas obsoletas.
+[ ] Dividir bbox grande em consultas menores para respeitar 256 chunks.
+
+5.2 POST /pixels/paint (PRIVADO)
+
+[ ] Headers: Authorization Bearer + Content-Type application/json.
+[ ] Body:
+    {
+      "cellX": 32768,
+      "cellY": 16384,
+      "color": 3,
+      "idempotencyKey": "UUID-V4"
+    }
+[ ] Validacoes: cellX 0..65535, cellY 0..32767, color inteiro 0..31.
+[ ] Sucesso HTTP 200: data.pixel, com campos snake_case:
+    cell_x, cell_y, chunk_x, chunk_y, color, author_id, version, updated_at.
+[ ] Fazer optimistic UI somente se houver rollback ao falhar.
+[ ] Limites: HTTP 30/10 s por usuario e token bucket adicional no banco.
+
+5.3 POST /protections/quote (PRIVADO)
+
+[ ] Body: { "originX": 32768, "originY": 16384 }
+[ ] originX/originY precisam ser multiplos de 16 e dentro da grade.
+[ ] A protecao e sempre 16x16 celulas.
+[ ] Sucesso HTTP 201: data.quote:
+    quote_id, origin_x, origin_y, price_credits, expires_at.
+[ ] Mostrar preco e expiracao. A cotacao atual nao e enviada na compra; a compra
+    recalcula o preco vigente no servidor.
+
+5.4 POST /protections/purchase (PRIVADO)
+
+[ ] Body:
+    { "originX": 32768, "originY": 16384, "idempotencyKey": "UUID-V4" }
+[ ] Sucesso HTTP 201: data.protection com id, owner_id, origin_x, origin_y,
+    width, height, status, starts_at, expires_at e demais campos do banco.
+[ ] A protecao dura 30 dias. Apos sucesso, atualizar carteira e camada de protecao.
+
+5.5 GET /protections/:id (PRIVADO)
+
+[ ] :id precisa ser UUID.
+[ ] Retorna protecao ativa para qualquer autenticado; protecao inativa somente para
+    o dono. Sucesso HTTP 200: data.protection.
+[ ] Tratar 404 NOT_FOUND sem considerar falha de sessao.
+
+5.6 GET /wallet (PRIVADO)
+
+[ ] Sucesso HTTP 200:
+    data.wallet = { balance_credits, updated_at } (updated_at pode nao existir se zero)
+    data.ledger = ate 50 itens, mais recentes primeiro:
+      id, amount_credits, entry_type, reference_type, reference_id,
+      balance_after, created_at.
+[ ] Atualizar depois de compra de protecao e confirmacao/reembolso de pagamento.
+
+5.7 POST /reports (PRIVADO)
+
+[ ] Body:
+    {
+      "targetType": "pixel" | "profile",
+      "targetId": "identificador com ate 128 caracteres",
+      "reason": "texto entre 3 e 500 caracteres"
+    }
+[ ] Sucesso HTTP 201: data.report = { id, status, created_at }.
+[ ] Limite atual: 5 denuncias/minuto por usuario/processo.
+
+5.8 POST /payments/checkout (PRIVADO - AINDA NAO PRONTO EM PRODUCAO)
+
+[ ] Body:
+    { "amountCents": 1000, "idempotencyKey": "UUID-V4" }
+[ ] amountCents precisa ser inteiro entre 100 e 10.000.000.
+[ ] Conversao atual no backend: credits = amountCents; moeda BRL.
+[ ] Limite atual: 3 checkouts/minuto por usuario/processo.
+[ ] NAO liberar compra no front de producao ainda. O codigo implementa apenas o
+    provider "local", e ele e deliberadamente bloqueado quando NODE_ENV=production.
+    Antes, implementar um adaptador real no backend e configurar webhook.
+[ ] Quando existir provider real, sucesso sera HTTP 201 em data.order e o front deve
+    abrir checkout_url conforme as regras de seguranca do provedor.
+
+5.9 POST /payments/webhook (SOMENTE PROVEDOR/BACKEND)
+
+[ ] Nunca chamar pelo frontend e nunca expor PAYMENT_WEBHOOK_SECRET.
+[ ] O provedor/backend envia corpo bruto e X-Webhook-Signature HMAC SHA-256.
+
+======================================================================
+6. CODIGOS E COMPORTAMENTO DE ERRO
+======================================================================
+
+[ ] 400 VALIDATION_ERROR: corrigir payload/parametros; nao repetir automaticamente.
+[ ] 400 CELL_NOT_LAND: avisar que celula/area nao e terrestre.
+[ ] 401 UNAUTHENTICATED: renovar sessao uma vez ou pedir login.
+[ ] 402 INSUFFICIENT_CREDITS: abrir fluxo de creditos (quando pagamento estiver pronto).
+[ ] 403 FORBIDDEN: acesso negado.
+[ ] 403 AREA_PROTECTED: area pertence a outro usuario; recarregar chunk.
+[ ] 404 NOT_FOUND: recurso/rota inexistente.
+[ ] 409 AREA_CONFLICT: atualizar protecoes/cotacao.
+[ ] 409 IDEMPOTENCY_CONFLICT: a chave foi reutilizada com outro payload; gerar uma nova
+    somente se for realmente uma nova acao.
+[ ] 429 RATE_LIMITED: bloquear temporariamente, informar usuario e usar backoff.
+[ ] 500 INTERNAL_ERROR: mensagem generica, logar request_id e permitir retry controlado.
+[ ] Falha de rede/timeout: distinguir de erro HTTP e oferecer "Tentar novamente".
+
+======================================================================
+7. MAPA, COORDENADAS E TEMPO REAL
+======================================================================
+
+[ ] Grade: 65536 x 32768, origem no noroeste.
+[ ] Converter longitude/latitude:
+    cellX = min(65535, floor(((lng + 180) / 360) * 65536))
+    cellY = min(32767, floor(((90 - lat) / 180) * 32768))
+[ ] Chunk:
+    chunkX = floor(cellX / 64)
+    chunkY = floor(cellY / 64)
+[ ] Protecao:
+    originX = floor(cellX / 16) * 16
+    originY = floor(cellY / 16) * 16
+[ ] Paleta: manter mapeamento fixo de 32 cores para IDs 0..31.
+
+[ ] Para Realtime, assinar public.pixel_cells no Supabase somente para a area/chunks
+    visiveis, remover subscriptions antigas ao mover o mapa e atualizar por version.
+[ ] Realtime e apenas sinal de atualizacao. Apos reconectar, trocar de area ou detectar
+    perda de evento, refazer GET /map/chunks; a resposta HTTP e autoritativa.
+[ ] Nao publicar eventos autoritativos pelo cliente.
+
+======================================================================
+8. CHECKLIST DO RENDER/BACKEND ANTES DE APONTAR O FRONT
+======================================================================
+
+[ ] Build command recomendado: npm ci
+[ ] Start command: npm start
+[ ] Runtime Node compativel com package.json: Node >= 24.
+[ ] Health check path: /health
+[ ] NODE_ENV=production
+[ ] PORT fornecida pelo Render (o servidor ja usa process.env.PORT).
+[ ] TRANSACTION_DATABASE_URL ou DATABASE_URL configurada como secret.
+[ ] SUPABASE_URL configurada.
+[ ] WORLD_PIXEL_ORIGINS com local/preview/producao.
+[ ] DATABASE_SSL_REJECT_UNAUTHORIZED/CA configurados conforme o pooler Supabase.
+[ ] Migrations 202611070001, 002 e 003 aplicadas no banco.
+[ ] Mascara terrestre importada; sem ela, toda pintura/protecao falha CELL_NOT_LAND.
+[ ] npm test e npm run check passando antes do deploy.
+[ ] RENDER_API_URL configurada em GitHub > Settings > Actions > Variables.
+[ ] Logs do Render sem erros de conexao/JWKS.
+[ ] PAYMENT_PROVIDER real implementado antes de ativar checkout em producao.
+
+======================================================================
+9. TESTE DE ACEITACAO PONTA A PONTA
+======================================================================
+
+[ ] Abrir front de producao em janela anonima: mapa publico carrega.
+[ ] Confirmar que Network usa a URL do Render, nao localhost/mock.
+[ ] Fazer login real e confirmar Bearer token nas rotas privadas.
+[ ] Recarregar a pagina: sessao e dados persistem.
+[ ] Pintar celula terrestre; recarregar e confirmar persistencia.
+[ ] Abrir outro navegador/usuario e confirmar atualizacao (Realtime ou refetch).
+[ ] Tentar pintar oceano e verificar mensagem CELL_NOT_LAND.
+[ ] Consultar quote valida; comprar protecao com saldo; conferir /wallet.
+[ ] Com segundo usuario, tentar pintar na protecao e receber AREA_PROTECTED.
+[ ] Enviar denuncia e receber status open.
+[ ] Testar token expirado/401, 429, perda de rede e cold start do Render.
+[ ] Confirmar que nenhum secret aparece no bundle, DevTools, logs ou repositorio.
+[ ] Confirmar layout e interacoes no celular.
+
+======================================================================
+10. PENDENCIAS/LIMITACOES REAIS ENCONTRADAS
+======================================================================
+
+[ ] Descobrir e registrar a URL real do Render (nao esta versionada no repositorio).
+[ ] Pagamento de producao precisa de adaptador de provedor; o local e bloqueado.
+[ ] Nao existem endpoints HTTP Node para perfil, historico/replay, lista de protecoes
+    do usuario ou listagem de protecoes por bbox. Nao inventar chamadas no frontend.
+[ ] GET /map/chunks retorna pixels, mas nao retorna areas protegidas. Se o mapa precisa
+    desenhar todas as protecoes, criar endpoint especifico no backend antes.
+[ ] A API nao usa prefixo /api nem /v1. As rotas comecam direto em /map, /pixels etc.
+[ ] CORS so e aplicado nas rotas World Pixel; /health nao e uma validacao de CORS.
+[ ] Rate limits HTTP ficam em memoria por instancia. O banco tambem limita pintura,
+    mas outros limites nao sao globais entre varias instancias do Render.
+[ ] O parametro zoom e validado em /map/chunks, mas atualmente nao altera o resultado.
+
+FIM DO CHECKLIST

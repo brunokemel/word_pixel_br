@@ -26,3 +26,12 @@
 - Persistência otimista agrupada por movimento; 15 testes, typecheck e build aprovados.
 - Servidor temporário respondeu HTTP 200 e foi encerrado após a verificação.
 - Phase 7 concluída: pincel Canvas contínuo, progressivo, suavizado e independente da latência da persistência.
+- Iniciada a Phase 8 para conectar o frontend à API real hospedada no Render e ao Supabase Auth.
+- Checklist real da API lido; incompatibilidades de grade, paleta e proteção identificadas antes da implementação.
+- Cliente HTTP real, Supabase Auth, envelopes, timeouts, request IDs, renovação de sessão e erros tipados implementados.
+- Grade migrada para 65536×32768, chunks 64, paleta fixa de 32 cores e proteção fixa alinhada 16×16.
+- Mock e sessão local removidos do frontend; pintura, carteira, cotação e compra agora usam a API real.
+- Carregamentos obsoletos são cancelados/ignorados, realtime é filtrado para chunks visíveis e pinturas respeitam o rate limit com fila e backoff.
+- Primeira validação após integração passou: typecheck, 11 testes e build de produção.
+- Auditoria final sem vulnerabilidades; servidor local respondeu HTTP 200 e foi encerrado.
+- Browser interno indisponível para screenshot; a validação visual e o teste ponta a ponta aguardam as URLs/chaves públicas reais.

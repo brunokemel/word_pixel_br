@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CloudOff, LockKeyhole } from "lucide-react";
-import { worldPixelApi } from "@/lib/mock-api";
+import { worldPixelApi } from "@/lib/api";
+import { hexToColorId } from "@/lib/palette";
+import { getSupabase, userToProfile } from "@/lib/supabase";
 import { ApiError, type GridCell, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type ToolMode, type UserProfile } from "@/lib/types";
 import { MapBoard } from "./map-board";
 import { CellCard, Header, HelpModal, LoginModal, ProtectionModal, ToolDock } from "./ui";
@@ -13,11 +15,11 @@ interface Toast { id: string; message: string; tone: "success" | "error" | "info
 export function WorldPixelApp() {
   const { t } = useI18n();
   const [mode, setMode] = useState<ToolMode>("navigate");
-  const [color, setColor] = useState("#ff4f87");
+  const [color, setColor] = useState("#e50000");
   const [cells, setCells] = useState<Map<string, GridCell>>(new Map());
   const [selectedCell, setSelectedCell] = useState<GridCell | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [balance, setBalance] = useState(500);
+  const [balance, setBalance] = useState(0);
   const [protectedAreas, setProtectedAreas] = useState<ProtectedArea[]>([]);
   const [protectionDraft, setProtectionDraft] = useState<ProtectionSelection | null>(null);
   const [quote, setQuote] = useState<ProtectionQuote | null>(null);
@@ -27,6 +29,8 @@ export function WorldPixelApp() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [connected, setConnected] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const paintQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const lastPaintRequestRef = useRef(0);
 
   const toast = useCallback((message: string, tone: Toast["tone"] = "info") => {
     const id = crypto.randomUUID();
@@ -34,16 +38,59 @@ export function WorldPixelApp() {
     setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 3600);
   }, []);
 
-  useEffect(() => {
-    void Promise.all([worldPixelApi.getProfile(), worldPixelApi.getWallet()]).then(([currentProfile, wallet]) => {
-      setProfile(currentProfile); setBalance(wallet.credits);
-    });
+  const errorMessage = useCallback((error: unknown, fallback: TranslationKey) => {
+    if (!(error instanceof ApiError)) return t(fallback);
+    const message = t(`error.${error.code}` as TranslationKey);
+    return error.requestId ? `${message} (ID: ${error.requestId})` : message;
+  }, [t]);
+
+  const enqueuePaint = useCallback((change: Parameters<typeof worldPixelApi.paintPixel>[0]) => {
+    const execute = async () => {
+      const delay = Math.max(0, 360 - (Date.now() - lastPaintRequestRef.current));
+      if (delay) await new Promise((resolve) => window.setTimeout(resolve, delay));
+      lastPaintRequestRef.current = Date.now();
+      try {
+        return await worldPixelApi.paintPixel(change);
+      } catch (error) {
+        if (!(error instanceof ApiError && error.code === "RATE_LIMITED")) throw error;
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        lastPaintRequestRef.current = Date.now();
+        return worldPixelApi.paintPixel(change);
+      }
+    };
+    const result = paintQueueRef.current.then(execute, execute);
+    paintQueueRef.current = result.then(() => undefined, () => undefined);
+    return result;
   }, []);
+
+  const refreshPrivateState = useCallback(async () => {
+    const currentProfile = await worldPixelApi.getProfile();
+    setProfile(currentProfile);
+    if (!currentProfile) { setBalance(0); return; }
+    try { setBalance((await worldPixelApi.getWallet()).credits); } catch (error) {
+      if (!(error instanceof ApiError && error.code === "UNAUTHENTICATED")) setConnected(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPrivateState();
+    const supabase = getSupabase();
+    const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
+      setProfile(session ? userToProfile(session.user) : null);
+      if (session) window.setTimeout(() => void worldPixelApi.getWallet().then((wallet) => setBalance(wallet.credits)).catch(() => setConnected(false)), 0);
+      else setBalance(0);
+    });
+    return () => subscription?.data.subscription.unsubscribe();
+  }, [refreshPrivateState]);
 
   const mergeCells = useCallback((incoming: GridCell[]) => {
     setCells((current) => {
       const next = new Map(current);
-      incoming.forEach((cell) => next.set(`${cell.x}:${cell.y}`, cell));
+      incoming.forEach((cell) => {
+        const key = `${cell.x}:${cell.y}`;
+        const currentCell = next.get(key);
+        if ((currentCell?.version ?? -1) <= (cell.version ?? Number.MAX_SAFE_INTEGER)) next.set(key, cell);
+      });
       return next;
     });
   }, []);
@@ -57,10 +104,10 @@ export function WorldPixelApp() {
     mergeCells(optimistic);
     if (optimistic.length > 0) setSelectedCell(optimistic[optimistic.length - 1]);
 
-    const results = await Promise.allSettled(paintedCells.map((cell) => worldPixelApi.paintPixel({
+    const results = await Promise.allSettled(paintedCells.map((cell) => enqueuePaint({
       cellX: cell.x,
       cellY: cell.y,
-      color,
+      color: hexToColorId(color),
       idempotencyKey: crypto.randomUUID(),
     })));
     const saved = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
@@ -78,30 +125,31 @@ export function WorldPixelApp() {
       });
       const rejected = results.find((result) => result.status === "rejected");
       const error = rejected?.status === "rejected" ? rejected.reason : null;
-      toast(error instanceof ApiError ? t(`error.${error.code}` as TranslationKey) : t("toast.paintFailed"), "error");
+      toast(errorMessage(error, "toast.paintFailed"), "error");
     }
-  }, [cells, color, mergeCells, profile, t, toast]);
+  }, [cells, color, enqueuePaint, errorMessage, mergeCells, profile, t, toast]);
 
   const handleProtect = useCallback(async (selection: ProtectionSelection) => {
     if (!profile) { setLoginOpen(true); toast(t("toast.loginToProtect"), "info"); return; }
     try {
       const nextQuote = await worldPixelApi.quoteProtection(selection);
       setQuote(nextQuote); setPurchaseStatus("review");
-    } catch (error) { toast(error instanceof ApiError ? t(`error.${error.code}` as TranslationKey) : t("toast.areaUnavailable"), "error"); }
-  }, [profile, t, toast]);
+    } catch (error) { toast(errorMessage(error, "toast.areaUnavailable"), "error"); }
+  }, [errorMessage, profile, t, toast]);
 
   const confirmProtection = useCallback(async () => {
     if (!quote) return;
     setPurchaseStatus("pending");
     try {
-      const area = await worldPixelApi.purchaseProtection(quote.id);
+      const selection = { originX: quote.originX, originY: quote.originY, width: 16, height: 16, pixelCount: 256 };
+      const area = await worldPixelApi.purchaseProtection(selection, crypto.randomUUID());
       setProtectedAreas((current) => [...current, area]);
       setProtectionDraft(null);
-      setBalance((current) => current - quote.priceInCents);
+      setBalance((current) => current - quote.priceCredits);
       setPurchaseStatus("confirmed");
       toast(t("toast.areaProtected"), "success");
-    } catch { setPurchaseStatus("error"); }
-  }, [quote, t, toast]);
+    } catch (error) { setPurchaseStatus("error"); toast(errorMessage(error, "protection.error"), "error"); }
+  }, [errorMessage, quote, t, toast]);
 
   const selectionPreview = useMemo<ProtectedArea[]>(() => {
     if (mode !== "protect" || !protectionDraft) return protectedAreas;
@@ -118,7 +166,7 @@ export function WorldPixelApp() {
       {!connected && <div className="connection-warning"><CloudOff size={17} /> {t("connection.reconnecting")}</div>}
       <div className="map-legend"><span><i className="free" /> {t("legend.free")}</span><span><LockKeyhole size={13} /> {t("legend.protected")}</span></div>
       <div className="toast-region" aria-live="polite">{toasts.map((item) => <div key={item.id} className={`toast ${item.tone}`}>{item.message}</div>)}</div>
-      {loginOpen && <LoginModal loading={loginLoading} onClose={() => setLoginOpen(false)} onSubmit={(email) => { setLoginLoading(true); void worldPixelApi.signIn(email).then((user) => { setProfile(user); setLoginOpen(false); toast(t("toast.welcome", { name: user.displayName }), "success"); }).finally(() => setLoginLoading(false)); }} />}
+      {loginOpen && <LoginModal loading={loginLoading} onClose={() => setLoginOpen(false)} onSubmit={(email) => { setLoginLoading(true); void worldPixelApi.signIn(email).then(() => { setLoginOpen(false); toast(t("toast.checkEmail"), "success"); }).catch((error) => toast(errorMessage(error, "toast.loginFailed"), "error")).finally(() => setLoginLoading(false)); }} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {quote && <ProtectionModal quote={quote} status={purchaseStatus} onClose={() => { setQuote(null); setProtectionDraft(null); }} onConfirm={confirmProtection} />}
     </main>
