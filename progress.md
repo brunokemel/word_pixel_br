@@ -35,3 +35,4 @@
 - Primeira validação após integração passou: typecheck, 11 testes e build de produção.
 - Auditoria final sem vulnerabilidades; servidor local respondeu HTTP 200 e foi encerrado.
 - Browser interno indisponível para screenshot; a validação visual e o teste ponta a ponta aguardam as URLs/chaves públicas reais.
+- Corrigida falha de runtime do MapLibre 6.16.0 em produção causada pela combinação `maxBounds` + `renderWorldCopies: false`; limites geográficos agora são aplicados somente ao bbox da API.

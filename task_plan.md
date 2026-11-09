@@ -84,3 +84,4 @@ Concluído no código; configuração externa e teste ponta a ponta dependem das
 | Navegador interno indisponível para QA visual do pincel | 1 | Mantidas validações automatizadas e solicitado teste visual local após o handoff |
 | Checagem HTTP recusada porque o servidor dev estava parado | 1 | Iniciar instância temporária em porta isolada, validar e encerrar |
 | Browser interno indisponível na QA final da integração | 1 | Servidor local validado por HTTP 200; inspeção visual permanece como teste manual recomendado |
+| MapLibre falhou em produção durante `resize/_calcMatrices` | 1 | Removidas restrições de câmera incompatíveis e mantido clamp apenas no bbox enviado à API |

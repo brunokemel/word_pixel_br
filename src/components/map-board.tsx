@@ -48,7 +48,12 @@ function boundsFeature(west: number, south: number, east: number, north: number,
 
 function getMapBounds(map: MapLibreMap): MapBounds {
   const bounds = map.getBounds();
-  return { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() };
+  return {
+    west: Math.max(-180, bounds.getWest()),
+    south: Math.max(-90, bounds.getSouth()),
+    east: Math.min(180, bounds.getEast()),
+    north: Math.min(90, bounds.getNorth()),
+  };
 }
 
 export function MapBoard({
@@ -130,8 +135,6 @@ export function MapBoard({
       zoom: 3.2,
       minZoom: 1.5,
       maxZoom: 18,
-      renderWorldCopies: false,
-      maxBounds: [[-180, -85], [180, 85]],
       attributionControl: false,
       style: {
         version: 8,
