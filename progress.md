@@ -36,3 +36,6 @@
 - Auditoria final sem vulnerabilidades; servidor local respondeu HTTP 200 e foi encerrado.
 - Browser interno indisponível para screenshot; a validação visual e o teste ponta a ponta aguardam as URLs/chaves públicas reais.
 - Corrigida falha de runtime do MapLibre 6.16.0 em produção causada pela combinação `maxBounds` + `renderWorldCopies: false`; limites geográficos agora são aplicados somente ao bbox da API.
+- Iniciada a Phase 9 para aplicar os PNGs oficiais da pasta `src/logo` ao header e à aba do navegador.
+- Logo horizontal aplicada ao header responsivo e logo quadrada registrada como favicon/Apple icon.
+- Typecheck, 13 testes e build passaram; HTML de produção confirmou os assets otimizados e os links de ícone.

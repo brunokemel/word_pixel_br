@@ -19,10 +19,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
 
 .app-shell { position: relative; width: 100vw; height: 100dvh; overflow: hidden; background: #07111f; }
 .topbar { position: absolute; z-index: 20; top: 0; left: 0; right: 0; height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid rgba(255,255,255,.09); background: linear-gradient(180deg, rgba(5,13,24,.95), rgba(5,13,24,.78)); backdrop-filter: blur(16px); }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 15px; letter-spacing: -.03em; }
-.brand strong { color: var(--pink); }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand-logo { display: block; width: 166px; height: auto; object-fit: contain; }
 .brand em { font-style: normal; font-size: 9px; letter-spacing: .08em; color: #91a2b4; border: 1px solid var(--line); padding: 3px 5px; border-radius: 5px; text-transform: uppercase; }
-.brand-mark { display: grid; place-items: center; width: 34px; height: 34px; background: var(--pink); color: white; border-radius: 10px; transform: rotate(-4deg); box-shadow: 0 8px 30px rgba(255,79,135,.28); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .language-select { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--line); background: rgba(255,255,255,.045); border-radius: 10px; color: #b9c5d1; }
 .language-select svg { color: #6ca8ff; flex: 0 0 auto; }
@@ -141,8 +140,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
 
 @media (max-width: 740px) {
   .topbar { height: 58px; padding: 0 12px; }
-  .brand { font-size: 12px; gap: 6px; }
-  .brand-mark { width: 31px; height: 31px; }
+  .brand { gap: 5px; }
+  .brand-logo { width: 132px; }
   .brand em, .live-pill, .icon-button { display: none; }
   .language-select { width: 38px; padding: 0; justify-content: center; }
   .language-select select { position: absolute; width: 38px; height: 38px; opacity: 0; }

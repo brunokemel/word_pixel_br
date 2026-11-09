@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Configurar as URLs e chaves públicas reais na Vercel e executar o teste ponta a ponta contra o Render.
+Publicar a identidade visual oficial no próximo deploy.
 
 ## Current Phase
-Concluído no código; configuração externa e teste ponta a ponta dependem das credenciais públicas reais.
+Concluído no código; pronto para commit e deploy.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -61,6 +61,12 @@ Concluído no código; configuração externa e teste ponta a ponta dependem das
 - [x] Atualizar configuração, documentação, testes e checklist de implantação
 - [x] Executar typecheck, testes e build de produção
 
+### Phase 9 — Identidade visual oficial
+**Status:** complete
+- [x] Usar `logoMaior.png` no header responsivo
+- [x] Usar `logoMenor.png` como ícone/fav icon do navegador
+- [x] Validar transparência, typecheck, testes e build
+
 ## Decisions Made
 | Decision | Rationale |
 |---|---|
@@ -72,6 +78,7 @@ Concluído no código; configuração externa e teste ponta a ponta dependem das
 | Canvas 2D separado para o traço ativo | Evita esperar React, MapLibre ou rede; o feedback aparece no mesmo frame e as células continuam sendo persistidas em paralelo |
 | API HTTP no Render + Supabase Auth no navegador | Corresponde ao contrato real: a API recebe Bearer do Supabase e permanece autoritativa para dados do mapa |
 | Proteção fixa 16×16 e paleta numérica de 32 cores | São invariantes validados pelo backend; o front não deve oferecer payloads que serão rejeitados |
+| PNG horizontal no header e PNG quadrado nos metadados | Reutiliza os ativos oficiais, preserva transparência e deixa a otimização do header a cargo do Next Image |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |

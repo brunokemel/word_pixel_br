@@ -1,10 +1,12 @@
 "use client";
 
-import { Brush, Compass, Globe2, HelpCircle, LockKeyhole, LogIn, LogOut, Map, Wallet, X } from "lucide-react";
+import Image from "next/image";
+import { Brush, Compass, Globe2, HelpCircle, LockKeyhole, LogIn, LogOut, Wallet, X } from "lucide-react";
 import { type CSSProperties, type ReactNode } from "react";
 import type { GridCell, ProtectionQuote, ToolMode, UserProfile } from "@/lib/types";
 import { localeLabels, type Locale, useI18n } from "@/lib/i18n";
 import { COLOR_PALETTE } from "@/lib/palette";
+import logoMaior from "@/logo/logoMaior.png";
 
 export const COLORS = [...COLOR_PALETTE];
 
@@ -14,7 +16,7 @@ export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
   const { locale, setLocale, t } = useI18n();
   return (
     <header className="topbar">
-      <div className="brand"><span className="brand-mark"><Map size={19} /></span><span>WORLD<strong>PIXEL</strong></span><em>beta</em></div>
+      <div className="brand"><Image className="brand-logo" src={logoMaior} alt="World Pixel" priority /><em>beta</em></div>
       <div className="topbar-actions">
         <div className="live-pill"><span /> {t("header.live")}</div>
         <label className="language-select" aria-label={t("language.label")}><Globe2 size={16} /><select value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>{Object.entries(localeLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>

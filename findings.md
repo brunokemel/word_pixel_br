@@ -26,3 +26,5 @@
 - Antes da Phase 8, o frontend usava `MockWorldPixelApi`, grade 720×360, cores hex arbitrárias e seleção retangular livre; esses contratos foram substituídos pelos invariantes reais da API.
 - A API não oferece perfil HTTP nem listagem de proteções por viewport. Perfil virá da sessão Supabase; o front só poderá desenhar proteções compradas na sessão até o backend expor uma rota de listagem.
 - Checkout está deliberadamente indisponível em produção e não será ativado no frontend.
+- `src/logo/logoMaior.png` tem 2172×724 com transparência e é a versão horizontal adequada para o header.
+- `src/logo/logoMenor.png` tem 1254×1254 com transparência e é a versão quadrada adequada para favicon/ícone do aplicativo.
