@@ -54,3 +54,6 @@
 - Iniciada a Phase 12 para organizar a paleta fixa da API por famílias de tons, sem alterar o contrato numérico.
 - Phase 12 concluída: 32 cores organizadas em quatro famílias traduzidas, layout responsivo e IDs da API preservados.
 - Validação final passou: lint, typecheck, 24 testes e build de produção com Next.js 16.4.5.
+- Iniciada a Phase 13 a partir de `PROMPT_FRONT_LOGIN_OTP.txt`; o fluxo atual de link mágico e perfil derivado do Supabase será substituído pelo OTP e pelo perfil autoritativo da API.
+- Phase 13 concluída no frontend: OTP de seis dígitos, reenvio em 60s, sessão restaurada, perfil/carteira reais, onboarding, edição e logout.
+- Validação final passou: lint, typecheck, 36 testes e build de produção; resta apenas configurar e validar o envio real no Supabase.

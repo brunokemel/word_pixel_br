@@ -1,13 +1,15 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { cellToBounds, getChunkId } from "./grid";
 import { colorIdToHex } from "./palette";
-import { getSession, getSupabase, userToProfile } from "./supabase";
+import { getSession, getSupabase } from "./supabase";
+import { normalizeEmail, normalizeOtp } from "./auth";
 import type { ReportPayload, ReportRecord } from "./reports";
-import { ApiError, type ApiErrorCode, type GridCell, type MapBounds, type PixelChange, type PixelChunk, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type RealtimeEvent, type WalletBalance, type WorldPixelApi } from "./types";
+import { ApiError, type ApiErrorCode, type GridCell, type MapBounds, type PixelChange, type PixelChunk, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type RealtimeEvent, type UserProfile, type WalletBalance, type WorldPixelApi } from "./types";
 
 type SuccessEnvelope<T> = { ok: true; data: T; request_id?: string };
 type ErrorEnvelope = { ok: false; error: { code?: string; message?: string; request_id?: string } };
 type ApiPixel = { cell_x?: number; cell_y?: number; x?: number; y?: number; chunk_x?: number; chunk_y?: number; color: number; author_id?: string; authorId?: string; version?: number; updated_at?: string; updatedAt?: string };
+type ApiProfile = { id: string; display_name: string; avatar_url: string | null; created_at: string; updated_at: string };
 
 const API_URL = process.env.NEXT_PUBLIC_WORLD_PIXEL_API_URL?.replace(/\/$/, "") ?? "";
 const TIMEOUT_MS = 60_000;
@@ -15,6 +17,12 @@ const TIMEOUT_MS = 60_000;
 async function refreshSession() {
   const result = await getSupabase()?.auth.refreshSession();
   return result?.data.session ?? null;
+}
+
+function authApiError(error: { message: string; status?: number }): ApiError {
+  if (error.status === 429) return new ApiError("RATE_LIMITED", error.message, undefined, 429);
+  if (!error.status || /fetch|network|connection/i.test(error.message)) return new ApiError("NETWORK_ERROR", error.message);
+  return new ApiError("UNAUTHENTICATED", error.message, undefined, error.status);
 }
 
 function apiCode(code: string | undefined): ApiErrorCode {
@@ -34,6 +42,10 @@ function toProtection(raw: Record<string, unknown>): ProtectedArea {
     id: String(raw.id), originX: Number(raw.origin_x), originY: Number(raw.origin_y), width: Number(raw.width ?? 16), height: Number(raw.height ?? 16),
     ownerId: String(raw.owner_id), ownerName: "", status: String(raw.status) as ProtectedArea["status"], expiresAt: String(raw.expires_at),
   };
+}
+
+function toProfile(profile: ApiProfile): UserProfile {
+  return { id: profile.id, displayName: profile.display_name, avatarUrl: profile.avatar_url ?? undefined, createdAt: profile.created_at, updatedAt: profile.updated_at };
 }
 
 export class HttpWorldPixelApi implements WorldPixelApi {
@@ -68,6 +80,7 @@ export class HttpWorldPixelApi implements WorldPixelApi {
           const refreshed = await this.sessionRefresher();
           if (refreshed) return this.request<T>(path, init, authenticated, true);
         }
+        if (response.status === 401 && authenticated && retried) await getSupabase()?.auth.signOut({ scope: "local" });
         throw new ApiError(apiCode(error.code), error.message ?? `Falha HTTP ${response.status}.`, error.request_id, response.status);
       }
       return payload.data;
@@ -122,12 +135,25 @@ export class HttpWorldPixelApi implements WorldPixelApi {
     return { id: data.report.id, category: data.report.category, status: data.report.status, createdAt: data.report.created_at };
   }
 
-  async getProfile() { const session = await getSession(); return session ? userToProfile(session.user) : null; }
-  async signIn(email: string) {
+  async getProfile() {
+    const data = await this.request<{ profile: ApiProfile }>("/profile", {}, true);
+    return toProfile(data.profile);
+  }
+  async updateProfile(input: { displayName?: string; avatarUrl?: string | null }) {
+    const data = await this.request<{ profile: ApiProfile }>("/profile", { method: "PATCH", body: JSON.stringify(input) }, true);
+    return toProfile(data.profile);
+  }
+  async requestOtp(email: string) {
     const supabase = getSupabase();
     if (!supabase) throw new ApiError("CONFIGURATION_ERROR", "Supabase não configurado.");
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
-    if (error) throw new ApiError("UNAUTHENTICATED", error.message);
+    const { error } = await supabase.auth.signInWithOtp({ email: normalizeEmail(email), options: { shouldCreateUser: true } });
+    if (error) throw authApiError(error);
+  }
+  async verifyOtp(email: string, token: string) {
+    const supabase = getSupabase();
+    if (!supabase) throw new ApiError("CONFIGURATION_ERROR", "Supabase não configurado.");
+    const { error } = await supabase.auth.verifyOtp({ email: normalizeEmail(email), token: normalizeOtp(token), type: "email" });
+    if (error) throw authApiError(error);
   }
   async signOut() { await getSupabase()?.auth.signOut(); }
   isLandCell(x: number, y: number) { void x; void y; return true; }

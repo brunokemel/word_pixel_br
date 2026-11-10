@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Validar visualmente a paleta no próximo deploy.
+Configurar o template OTP, URLs e SMTP no painel do Supabase e validar o fluxo com um e-mail real.
 
 ## Current Phase
-Concluído no código; pronto para revisão, sem commit.
+Concluído no código; aguardando configuração externa e teste integrado, sem commit.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -90,6 +90,15 @@ Concluído no código; pronto para revisão, sem commit.
 - [x] Criar seletor visual de família mantendo o payload numérico atual
 - [x] Traduzir os nomes das famílias em pt/en/es
 - [x] Garantir por teste que todos os IDs aparecem exatamente uma vez
+- [x] Executar lint, typecheck, testes e build
+
+### Phase 13 — Login OTP e perfil real
+**Status:** complete
+- [x] Trocar link mágico por solicitação e confirmação de OTP de seis dígitos
+- [x] Restaurar e sincronizar sessão sem exibir estado privado incorreto
+- [x] Consumir GET/PATCH /profile e GET /wallet com Bearer
+- [x] Adicionar onboarding e edição de nome de artista
+- [x] Cobrir autenticação, perfil e retry 401 com testes
 - [x] Executar lint, typecheck, testes e build
 
 ## Decisions Made

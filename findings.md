@@ -33,4 +33,5 @@
 - O fluxo de denúncia deve reutilizar `HttpWorldPixelApi.request`, que já injeta `Accept`, `Content-Type`, Bearer do Supabase, timeout, renovação de sessão e envelopes de erro.
 - `CellCard` já concentra as ações do pixel; o botão de denúncia pertence ali, enquanto `WorldPixelApp` deve controlar autenticação, envio, toast e prevenção duplicada.
 - A paleta pode recuperar uma experiência personalizada sem mudar o backend: os mesmos IDs 0..31 serão apenas reorganizados em quatro famílias visuais de oito tons.
+- O projeto já usa `NEXT_PUBLIC_WORLD_PIXEL_API_URL`; o fluxo OTP preserva esse nome existente e mantém `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` para o cliente público.
 - O projeto não tinha ESLint configurado. Next 16 removeu `next lint`; a documentação local recomenda ESLint CLI com `eslint-config-next/core-web-vitals` e `typescript`.

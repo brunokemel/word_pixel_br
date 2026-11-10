@@ -1,5 +1,4 @@
-import { createClient, type Session, type SupabaseClient, type User } from "@supabase/supabase-js";
-import type { UserProfile } from "./types";
+import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 
 let client: SupabaseClient | null = null;
 
@@ -9,11 +8,6 @@ export function getSupabase(): SupabaseClient | null {
   if (!url || !anonKey) return null;
   client ??= createClient(url, anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   return client;
-}
-
-export function userToProfile(user: User): UserProfile {
-  const displayName = user.user_metadata?.display_name ?? user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Artista";
-  return { id: user.id, displayName, avatarUrl: user.user_metadata?.avatar_url };
 }
 
 export async function getSession(): Promise<Session | null> {

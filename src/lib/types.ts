@@ -56,6 +56,8 @@ export interface UserProfile {
   id: string;
   displayName: string;
   avatarUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WalletBalance {
@@ -123,7 +125,9 @@ export interface WorldPixelApi {
   getWallet(): Promise<WalletBalance>;
   submitReport(payload: ReportPayload): Promise<ReportRecord>;
   getProfile(): Promise<UserProfile | null>;
-  signIn(email: string): Promise<void>;
+  updateProfile(input: { displayName?: string; avatarUrl?: string | null }): Promise<UserProfile>;
+  requestOtp(email: string): Promise<void>;
+  verifyOtp(email: string, token: string): Promise<void>;
   signOut(): Promise<void>;
   subscribe(chunkIds: string[], listener: (event: RealtimeEvent) => void): Unsubscribe;
   isLandCell(x: number, y: number): boolean;

@@ -6,11 +6,13 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import type { GridCell, ProtectionQuote, ToolMode, UserProfile } from "@/lib/types";
 import { localeLabels, type Locale, useI18n } from "@/lib/i18n";
 import { COLOR_GROUPS, COLOR_PALETTE, colorGroupIdFor, type ColorGroupId } from "@/lib/palette";
+import { isValidEmail, normalizeEmail, normalizeOtp, validateDisplayName } from "@/lib/auth";
 import { reportCategories, type ReportCategory, validateReport } from "@/lib/reports";
+import { ApiError } from "@/lib/types";
 import logoMaior from "@/logo/logoMaior.png";
 
-export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
-  profile: UserProfile | null; balance: number; onLogin: () => void; onLogout: () => void; onHelp: () => void;
+export function Header({ profile, balance, authReady, onLogin, onProfile, onLogout, onHelp }: {
+  profile: UserProfile | null; balance: number; authReady: boolean; onLogin: () => void; onProfile: () => void; onLogout: () => void; onHelp: () => void;
 }) {
   const { locale, setLocale, t } = useI18n();
   return (
@@ -21,8 +23,8 @@ export function Header({ profile, balance, onLogin, onLogout, onHelp }: {
         <label className="language-select" aria-label={t("language.label")}><Globe2 size={16} /><select value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>{Object.entries(localeLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
         <button className="icon-button" onClick={onHelp} aria-label={t("header.help")}><HelpCircle size={19} /></button>
         <div className="balance"><Wallet size={17} /><span><small>{t("header.balance")}</small> {balance.toLocaleString(locale)}</span></div>
-        {profile ? (
-          <button className="profile-button" onClick={onLogout} title={t("header.logout")}><span>{profile.displayName.slice(0, 1).toUpperCase()}</span><b>{profile.displayName}</b><LogOut size={16} /></button>
+        {!authReady ? <div className="auth-placeholder" aria-hidden="true" /> : profile ? (
+          <><button className="profile-button" onClick={onProfile} title={t("profile.edit")}><span>{profile.displayName.slice(0, 1).toUpperCase()}</span><b>{profile.displayName}</b></button><button className="icon-button logout-button" onClick={onLogout} aria-label={t("header.logout")}><LogOut size={16} /></button></>
         ) : (
           <button className="primary-button compact" onClick={onLogin}><LogIn size={17} /><span className="button-label">{t("header.login")}</span></button>
         )}
@@ -147,9 +149,51 @@ export function ReportModal({ cell, submitting, submitError, onClose, onSubmit }
   </Modal>;
 }
 
-export function LoginModal({ onClose, onSubmit, loading }: { onClose: () => void; onSubmit: (email: string) => void; loading: boolean }) {
+export function LoginModal({ onClose, onRequestOtp, onVerifyOtp }: { onClose: () => void; onRequestOtp: (email: string) => Promise<void>; onVerifyOtp: (email: string, token: string) => Promise<void> }) {
   const { t } = useI18n();
-  return <Modal onClose={onClose} label={t("login.label")}><div className="modal-icon pink"><Brush size={24} /></div><span className="eyebrow">{t("login.eyebrow")}</span><h2>{t("login.title")}</h2><p>{t("login.description")}</p><form onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); onSubmit(String(data.get("email"))); }}><label htmlFor="email">{t("login.email")}</label><input id="email" name="email" type="email" placeholder={t("login.placeholder")} required autoFocus /><button className="primary-button wide" disabled={loading}>{loading ? t("login.loading") : t("login.continue")}</button></form><small className="fine-print">{t("login.prototype")}</small></Modal>;
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [seconds, setSeconds] = useState(0);
+  const busyRef = useRef(false);
+  useEffect(() => {
+    if (seconds <= 0) return;
+    const timer = window.setInterval(() => setSeconds((current) => Math.max(0, current - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [seconds]);
+  const authError = (caught: unknown, verifying = false) => {
+    if (caught instanceof ApiError && caught.code === "RATE_LIMITED") return t("login.error.rateLimit");
+    if (caught instanceof ApiError && caught.code === "NETWORK_ERROR") return t("login.error.network");
+    return verifying ? t("login.error.code") : t("login.error.generic");
+  };
+  const requestCode = async (value: string) => {
+    const normalized = normalizeEmail(value);
+    if (!isValidEmail(normalized)) { setError(t("login.error.email")); return; }
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setLoading(true); setError(null);
+    try { await onRequestOtp(normalized); setEmail(normalized); setStep("code"); setSeconds(60); }
+    catch (caught) { setError(authError(caught)); }
+    finally { busyRef.current = false; setLoading(false); }
+  };
+  const verifyCode = async () => {
+    if (code.length !== 6 || busyRef.current) return;
+    busyRef.current = true;
+    setLoading(true); setError(null);
+    try { await onVerifyOtp(email, code); onClose(); }
+    catch (caught) { setError(authError(caught, true)); }
+    finally { busyRef.current = false; setLoading(false); }
+  };
+  return <Modal onClose={onClose} label={t("login.label")}><div className="modal-icon pink"><Brush size={24} /></div><span className="eyebrow">{t("login.eyebrow")}</span><h2>{step === "email" ? t("login.title") : t("login.codeTitle")}</h2><p>{step === "email" ? t("login.description") : t("login.neutralMessage")}</p>{step === "email" ? <form onSubmit={(event) => { event.preventDefault(); void requestCode(email); }}><label htmlFor="email">{t("login.email")}</label><input id="email" name="email" type="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("login.placeholder")} required autoFocus aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} /><button className="primary-button wide" disabled={loading}>{loading ? t("login.sending") : t("login.continue")}</button></form> : <form onSubmit={(event) => { event.preventDefault(); void verifyCode(); }}><label htmlFor="otp">{t("login.code")}</label><input id="otp" className="otp-input" value={code} onChange={(event) => setCode(normalizeOtp(event.target.value))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" autoFocus aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} /><button className="primary-button wide" disabled={loading || code.length !== 6}>{loading ? t("login.verifying") : t("login.confirm")}</button><div className="login-secondary-actions"><button type="button" className="text-button" onClick={() => { setStep("email"); setCode(""); setError(null); }}>{t("login.changeEmail")}</button><button type="button" className="text-button" disabled={loading || seconds > 0} onClick={() => void requestCode(email)}>{seconds > 0 ? t("login.resendIn", { seconds }) : t("login.resend")}</button></div></form>}{error && <p id="login-error" className="inline-error" role="alert" aria-live="polite">{error}</p>}<small className="fine-print">{t("login.prototype")}</small></Modal>;
+}
+
+export function ProfileModal({ profile, required, saving, error, onClose, onSave }: { profile: UserProfile; required: boolean; saving: boolean; error: string | null; onClose: () => void; onSave: (displayName: string) => void }) {
+  const { t } = useI18n();
+  const [name, setName] = useState(profile.displayName.startsWith("Artista-") ? "" : profile.displayName);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  return <Modal onClose={required ? () => undefined : onClose} label={required ? t("profile.onboardingLabel") : t("profile.edit")}><span className="eyebrow">{t("profile.eyebrow")}</span><h2>{required ? t("profile.onboardingTitle") : t("profile.editTitle")}</h2><p>{t("profile.description")}</p><form onSubmit={(event) => { event.preventDefault(); const normalized = validateDisplayName(name); if (!normalized) { setFieldError(t("profile.error.name")); return; } setFieldError(null); onSave(normalized); }}><label htmlFor="display-name">{t("profile.name")}</label><input id="display-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoFocus aria-invalid={Boolean(fieldError)} aria-describedby={fieldError ? "profile-name-error" : undefined} />{fieldError && <p id="profile-name-error" className="field-error">{fieldError}</p>}{error && <p className="inline-error" role="alert">{error}</p>}<div className="modal-actions">{!required && <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>{t("report.cancel")}</button>}<button className="primary-button" disabled={saving}>{saving ? t("profile.saving") : t("profile.save")}</button></div></form></Modal>;
 }
 
 export function HelpModal({ onClose }: { onClose: () => void }) {
