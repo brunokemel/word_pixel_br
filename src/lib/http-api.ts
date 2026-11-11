@@ -2,7 +2,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { cellToBounds, getChunkId } from "./grid";
 import { colorIdToHex } from "./palette";
 import { getSession, getSupabase } from "./supabase";
-import { normalizeEmail, normalizeOtp } from "./auth";
+import { normalizeEmail } from "./auth";
 import type { ReportPayload, ReportRecord } from "./reports";
 import { ApiError, type ApiErrorCode, type GridCell, type MapBounds, type PixelChange, type PixelChunk, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type RealtimeEvent, type UserProfile, type WalletBalance, type WorldPixelApi } from "./types";
 
@@ -143,16 +143,29 @@ export class HttpWorldPixelApi implements WorldPixelApi {
     const data = await this.request<{ profile: ApiProfile }>("/profile", { method: "PATCH", body: JSON.stringify(input) }, true);
     return toProfile(data.profile);
   }
-  async requestOtp(email: string) {
+  async signInWithPassword(email: string, password: string) {
     const supabase = getSupabase();
     if (!supabase) throw new ApiError("CONFIGURATION_ERROR", "Supabase não configurado.");
-    const { error } = await supabase.auth.signInWithOtp({ email: normalizeEmail(email), options: { shouldCreateUser: true } });
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizeEmail(email), password });
     if (error) throw authApiError(error);
   }
-  async verifyOtp(email: string, token: string) {
+  async signUpWithPassword(email: string, password: string) {
     const supabase = getSupabase();
     if (!supabase) throw new ApiError("CONFIGURATION_ERROR", "Supabase não configurado.");
-    const { error } = await supabase.auth.verifyOtp({ email: normalizeEmail(email), token: normalizeOtp(token), type: "email" });
+    const { data, error } = await supabase.auth.signUp({ email: normalizeEmail(email), password });
+    if (error) throw authApiError(error);
+    return Boolean(data.session);
+  }
+  async requestPasswordReset(email: string) {
+    const supabase = getSupabase();
+    if (!supabase) throw new ApiError("CONFIGURATION_ERROR", "Supabase não configurado.");
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), { redirectTo: window.location.origin });
+    if (error) throw authApiError(error);
+  }
+  async updatePassword(password: string) {
+    const supabase = getSupabase();
+    if (!supabase) throw new ApiError("CONFIGURATION_ERROR", "Supabase não configurado.");
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) throw authApiError(error);
   }
   async signOut() { await getSupabase()?.auth.signOut(); }

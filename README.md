@@ -11,7 +11,7 @@ A interface é responsiva e está disponível em português, inglês e espanhol.
 - feedback visual imediato enquanto o usuário desenha;
 - atualização otimista dos pixels e sincronização com o backend;
 - atualizações em tempo real pelo Supabase Realtime;
-- autenticação por código enviado por e-mail (OTP);
+- autenticação por e-mail e senha, com recuperação por e-mail;
 - seleção e proteção de áreas fixas de 16 × 16 células;
 - carteira de créditos, perfil e denúncias de conteúdo;
 - interface internacionalizada em `pt-BR`, `en` e `es`.
@@ -64,7 +64,7 @@ Navegador
 ├── API World Pixel (HTTP/JSON)
 │   └── mapa, pintura, proteções, perfil, carteira e denúncias
 └── Supabase
-    ├── Auth: sessão e OTP por e-mail
+    ├── Auth: sessão por senha e recuperação por e-mail
     └── Realtime: alterações na tabela pixel_cells
 ```
 
@@ -110,7 +110,7 @@ Principais rotas usadas pelo front-end:
 
 ### Autenticação e tempo real
 
-O login usa [Supabase Auth](https://supabase.com/docs/guides/auth) com OTP por e-mail. A sessão é persistida e renovada automaticamente pelo SDK. A chave `anon` é pública e pode estar no navegador, desde que o banco tenha políticas RLS corretas; a chave `service_role` nunca deve ser exposta no front-end.
+O login usa [Supabase Auth](https://supabase.com/docs/guides/auth) com e-mail e senha. O SMTP é usado apenas para recuperação de senha e, quando habilitada, confirmação de e-mail. A sessão é persistida e renovada automaticamente pelo SDK. A chave `anon` é pública e pode estar no navegador, desde que o banco tenha políticas RLS corretas; a chave `service_role` nunca deve ser exposta no front-end.
 
 Depois de carregar os chunks visíveis, o front assina mudanças da tabela `public.pixel_cells` pelo [Supabase Realtime](https://supabase.com/docs/guides/realtime). Ao trocar o viewport, a assinatura anterior é removida e uma nova é criada para os chunks relevantes.
 

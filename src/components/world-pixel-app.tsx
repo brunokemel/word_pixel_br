@@ -8,7 +8,7 @@ import { getSupabase } from "@/lib/supabase";
 import type { ReportCategory } from "@/lib/reports";
 import { ApiError, type GridCell, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type ToolMode, type UserProfile } from "@/lib/types";
 import { MapBoard } from "./map-board";
-import { CellCard, Header, HelpModal, LoginModal, ProfileModal, ProtectionModal, ReportModal, ToolDock } from "./ui";
+import { CellCard, Header, HelpModal, LoginModal, ProfileModal, ProtectionModal, ReportModal, ResetPasswordModal, ToolDock } from "./ui";
 import { type TranslationKey, useI18n } from "@/lib/i18n";
 
 interface Toast { id: string; message: string; tone: "success" | "error" | "info"; }
@@ -27,6 +27,7 @@ export function WorldPixelApp() {
   const [quote, setQuote] = useState<ProtectionQuote | null>(null);
   const [purchaseStatus, setPurchaseStatus] = useState<"review" | "pending" | "confirmed" | "error">("review");
   const [loginOpen, setLoginOpen] = useState(false);
+  const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -96,7 +97,8 @@ export function WorldPixelApp() {
       else setAuthReady(true);
     });
     if (!supabase) window.setTimeout(() => setAuthReady(true), 0);
-    const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
+    const subscription = supabase?.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") { setPasswordRecoveryOpen(true); setAuthReady(true); return; }
       if (session) window.setTimeout(() => void refreshPrivateState(), 0);
       else { setProfile(null); setBalance(0); setProfileOpen(false); setAuthReady(true); }
     });
@@ -232,7 +234,8 @@ export function WorldPixelApp() {
       {profileLoadFailed && <div className="profile-retry" role="alert"><span>{t("profile.error.load")}</span><button onClick={() => void refreshPrivateState()}>{t("profile.retry")}</button></div>}
       <div className="map-legend"><span><i className="free" /> {t("legend.free")}</span><span><LockKeyhole size={13} /> {t("legend.protected")}</span></div>
       <div className="toast-region" aria-live="polite">{toasts.map((item) => <div key={item.id} className={`toast ${item.tone}`}>{item.message}</div>)}</div>
-      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} onRequestOtp={(email) => worldPixelApi.requestOtp(email)} onVerifyOtp={(email, token) => worldPixelApi.verifyOtp(email, token)} />}
+      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} onSignIn={(email, password) => worldPixelApi.signInWithPassword(email, password)} onSignUp={(email, password) => worldPixelApi.signUpWithPassword(email, password)} onRequestPasswordReset={(email) => worldPixelApi.requestPasswordReset(email)} />}
+      {passwordRecoveryOpen && <ResetPasswordModal onSave={async (password) => { await worldPixelApi.updatePassword(password); setPasswordRecoveryOpen(false); await refreshPrivateState(); toast(t("login.passwordUpdated"), "success"); }} />}
       {profile && profileOpen && <ProfileModal profile={profile} required={profile.displayName.startsWith("Artista-")} saving={profileSaving} error={profileError} onClose={() => setProfileOpen(false)} onSave={(name) => void saveProfile(name)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {reportCell && <ReportModal cell={reportCell} submitting={reportSubmitting} submitError={reportError} onClose={() => { if (!reportSubmitting) { setReportCell(null); setReportError(null); } }} onSubmit={submitReport} />}

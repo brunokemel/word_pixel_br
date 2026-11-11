@@ -4,7 +4,7 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Configurar o template OTP, URLs e SMTP no painel do Supabase e validar o fluxo com um e-mail real.
+Configurar e-mail/senha, SMTP, URLs de redirect e rate limits no painel do Supabase; depois validar cadastro, login e recuperação com um e-mail real.
 
 ## Current Phase
 Concluído no código; aguardando configuração externa e teste integrado, sem commit.
@@ -101,6 +101,14 @@ Concluído no código; aguardando configuração externa e teste integrado, sem 
 - [x] Cobrir autenticação, perfil e retry 401 com testes
 - [x] Executar lint, typecheck, testes e build
 
+### Phase 14 — Login por senha e recuperação
+**Status:** complete
+- [x] Trocar OTP por login e cadastro com e-mail e senha
+- [x] Adicionar solicitação e conclusão de recuperação de senha
+- [x] Aplicar cooldown e mensagens neutras na recuperação
+- [x] Criar prompt para configuração correspondente na API/Supabase
+- [x] Atualizar documentação e executar lint, typecheck, testes e build
+
 ## Decisions Made
 | Decision | Rationale |
 |---|---|
@@ -116,6 +124,7 @@ Concluído no código; aguardando configuração externa e teste integrado, sem 
 | Media queries por largura, altura, orientação e tipo de ponteiro | Cobre celular, tablet, paisagem, safe areas e touch sem depender de detecção frágil por user agent |
 | Denúncia aberta a partir do cartão do pixel | Mantém a ação contextual, não polui o mapa e fornece `cellX:cellY` sem entrada manual |
 | Estado do formulário local e envio controlado pelo app | Permite validação acessível, retry sem perder dados e trava duplicidade também fora do botão |
+| Supabase Auth com e-mail/senha e SMTP apenas para recuperação | Remove e-mails do login cotidiano, preserva JWT/RLS e limita o custo de SMTP ao fluxo necessário |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |

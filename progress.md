@@ -57,3 +57,6 @@
 - Iniciada a Phase 13 a partir de `PROMPT_FRONT_LOGIN_OTP.txt`; o fluxo atual de link mágico e perfil derivado do Supabase será substituído pelo OTP e pelo perfil autoritativo da API.
 - Phase 13 concluída no frontend: OTP de seis dígitos, reenvio em 60s, sessão restaurada, perfil/carteira reais, onboarding, edição e logout.
 - Validação final passou: lint, typecheck, 36 testes e build de produção; resta apenas configurar e validar o envio real no Supabase.
+- Iniciada a Phase 14 para substituir OTP por e-mail/senha e manter SMTP somente nos fluxos de recuperação e eventual confirmação.
+- Phase 14 concluída: login, cadastro, recuperação com cooldown, definição de nova senha, traduções e prompt da API implementados.
+- Validação final passou: lint sem avisos, typecheck, 36 testes e build de produção com Next.js 16.4.5.

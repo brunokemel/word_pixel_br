@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidEmail, normalizeEmail, normalizeOtp, validateDisplayName } from "./auth";
+import { isValidEmail, isValidPassword, normalizeEmail, validateDisplayName } from "./auth";
 
 describe("validação de autenticação e perfil", () => {
   it("normaliza e valida e-mail", () => {
@@ -8,8 +8,9 @@ describe("validação de autenticação e perfil", () => {
     expect(isValidEmail("email-invalido")).toBe(false);
   });
 
-  it("aceita apenas os seis primeiros dígitos do OTP", () => {
-    expect(normalizeOtp("12 34-567")).toBe("123456");
+  it("exige senha com pelo menos oito caracteres", () => {
+    expect(isValidPassword("1234567")).toBe(false);
+    expect(isValidPassword("12345678")).toBe(true);
   });
 
   it("aplica trim e limite de 1 a 40 caracteres ao nome", () => {

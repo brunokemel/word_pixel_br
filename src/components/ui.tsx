@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import type { GridCell, ProtectionQuote, ToolMode, UserProfile } from "@/lib/types";
 import { localeLabels, type Locale, useI18n } from "@/lib/i18n";
 import { COLOR_GROUPS, COLOR_PALETTE, colorGroupIdFor, type ColorGroupId } from "@/lib/palette";
-import { isValidEmail, normalizeEmail, normalizeOtp, validateDisplayName } from "@/lib/auth";
+import { isValidEmail, isValidPassword, normalizeEmail, validateDisplayName } from "@/lib/auth";
 import { reportCategories, type ReportCategory, validateReport } from "@/lib/reports";
 import { ApiError } from "@/lib/types";
 import logoMaior from "@/logo/logoMaior.png";
@@ -150,13 +150,19 @@ export function ReportModal({ cell, submitting, submitError, onClose, onSubmit }
   </Modal>;
 }
 
-export function LoginModal({ onClose, onRequestOtp, onVerifyOtp }: { onClose: () => void; onRequestOtp: (email: string) => Promise<void>; onVerifyOtp: (email: string, token: string) => Promise<void> }) {
+export function LoginModal({ onClose, onSignIn, onSignUp, onRequestPasswordReset }: {
+  onClose: () => void;
+  onSignIn: (email: string, password: string) => Promise<void>;
+  onSignUp: (email: string, password: string) => Promise<boolean>;
+  onRequestPasswordReset: (email: string) => Promise<void>;
+}) {
   const { t } = useI18n();
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [mode, setMode] = useState<"login" | "signup" | "recovery">("login");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const busyRef = useRef(false);
   useEffect(() => {
@@ -164,30 +170,50 @@ export function LoginModal({ onClose, onRequestOtp, onVerifyOtp }: { onClose: ()
     const timer = window.setInterval(() => setSeconds((current) => Math.max(0, current - 1)), 1000);
     return () => window.clearInterval(timer);
   }, [seconds]);
-  const authError = (caught: unknown, verifying = false) => {
+  const authError = (caught: unknown) => {
     if (caught instanceof ApiError && caught.code === "RATE_LIMITED") return t("login.error.rateLimit");
     if (caught instanceof ApiError && caught.code === "NETWORK_ERROR") return t("login.error.network");
-    return verifying ? t("login.error.code") : t("login.error.generic");
+    return mode === "login" ? t("login.error.credentials") : t("login.error.generic");
   };
-  const requestCode = async (value: string) => {
-    const normalized = normalizeEmail(value);
+  const submitCredentials = async () => {
+    const normalized = normalizeEmail(email);
     if (!isValidEmail(normalized)) { setError(t("login.error.email")); return; }
+    if (!isValidPassword(password)) { setError(t("login.error.password")); return; }
     if (busyRef.current) return;
     busyRef.current = true;
     setLoading(true); setError(null);
-    try { await onRequestOtp(normalized); setEmail(normalized); setStep("code"); setSeconds(60); }
+    try {
+      if (mode === "login") await onSignIn(normalized, password);
+      else {
+        const authenticated = await onSignUp(normalized, password);
+        if (!authenticated) { setMessage(t("login.signupConfirmation")); return; }
+      }
+      onClose();
+    }
     catch (caught) { setError(authError(caught)); }
     finally { busyRef.current = false; setLoading(false); }
   };
-  const verifyCode = async () => {
-    if (code.length !== 6 || busyRef.current) return;
+  const requestRecovery = async () => {
+    const normalized = normalizeEmail(email);
+    if (!isValidEmail(normalized)) { setError(t("login.error.email")); return; }
+    if (busyRef.current || seconds > 0) return;
     busyRef.current = true;
     setLoading(true); setError(null);
-    try { await onVerifyOtp(email, code); onClose(); }
-    catch (caught) { setError(authError(caught, true)); }
+    try { await onRequestPasswordReset(normalized); setMessage(t("login.recoverySent")); setSeconds(60); }
+    catch (caught) { setError(authError(caught)); }
     finally { busyRef.current = false; setLoading(false); }
   };
-  return <Modal onClose={onClose} label={t("login.label")}><div className="modal-icon pink"><Brush size={24} /></div><span className="eyebrow">{t("login.eyebrow")}</span><h2>{step === "email" ? t("login.title") : t("login.codeTitle")}</h2><p>{step === "email" ? t("login.description") : t("login.neutralMessage")}</p>{step === "email" ? <form onSubmit={(event) => { event.preventDefault(); void requestCode(email); }}><label htmlFor="email">{t("login.email")}</label><input id="email" name="email" type="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("login.placeholder")} required autoFocus aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} /><button className="primary-button wide" disabled={loading}>{loading ? t("login.sending") : t("login.continue")}</button></form> : <form onSubmit={(event) => { event.preventDefault(); void verifyCode(); }}><label htmlFor="otp">{t("login.code")}</label><input id="otp" className="otp-input" value={code} onChange={(event) => setCode(normalizeOtp(event.target.value))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" autoFocus aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} /><button className="primary-button wide" disabled={loading || code.length !== 6}>{loading ? t("login.verifying") : t("login.confirm")}</button><div className="login-secondary-actions"><button type="button" className="text-button" onClick={() => { setStep("email"); setCode(""); setError(null); }}>{t("login.changeEmail")}</button><button type="button" className="text-button" disabled={loading || seconds > 0} onClick={() => void requestCode(email)}>{seconds > 0 ? t("login.resendIn", { seconds }) : t("login.resend")}</button></div></form>}{error && <p id="login-error" className="inline-error" role="alert" aria-live="polite">{error}</p>}<small className="fine-print">{t("login.prototype")}</small></Modal>;
+  const switchMode = (next: typeof mode) => { setMode(next); setPassword(""); setError(null); setMessage(null); };
+  return <Modal onClose={onClose} label={t("login.label")}><div className="modal-icon pink"><Brush size={24} /></div><span className="eyebrow">{t("login.eyebrow")}</span><h2>{t(`login.${mode}Title`)}</h2><p>{t(`login.${mode}Description`)}</p><form onSubmit={(event) => { event.preventDefault(); void (mode === "recovery" ? requestRecovery() : submitCredentials()); }}><label htmlFor="email">{t("login.email")}</label><input id="email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("login.placeholder")} required data-autofocus aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} />{mode !== "recovery" && <><label htmlFor="password">{t("login.password")}</label><input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required /></>}<button className="primary-button wide" disabled={loading || (mode === "recovery" && seconds > 0)}>{loading ? t("login.loading") : mode === "login" ? t("login.signIn") : mode === "signup" ? t("login.signUp") : seconds > 0 ? t("login.resendIn", { seconds }) : t("login.recover")}</button></form>{error && <p id="login-error" className="inline-error" role="alert" aria-live="polite">{error}</p>}{message && <p className="inline-success" role="status" aria-live="polite">{message}</p>}<div className="login-secondary-actions">{mode !== "login" && <button type="button" className="text-button" onClick={() => switchMode("login")}>{t("login.haveAccount")}</button>}{mode === "login" && <><button type="button" className="text-button" onClick={() => switchMode("signup")}>{t("login.createAccount")}</button><button type="button" className="text-button" onClick={() => switchMode("recovery")}>{t("login.forgotPassword")}</button></>}</div><small className="fine-print">{t("login.passwordHint")}</small></Modal>;
+}
+
+export function ResetPasswordModal({ onSave }: { onSave: (password: string) => Promise<void> }) {
+  const { t } = useI18n();
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return <Modal onClose={() => undefined} label={t("login.resetTitle")}><div className="modal-icon pink"><LockKeyhole size={24} /></div><h2>{t("login.resetTitle")}</h2><p>{t("login.resetDescription")}</p><form onSubmit={(event) => { event.preventDefault(); if (!isValidPassword(password)) { setError(t("login.error.password")); return; } if (password !== confirmation) { setError(t("login.error.passwordMatch")); return; } setLoading(true); setError(null); void onSave(password).catch(() => setError(t("login.error.generic"))).finally(() => setLoading(false)); }}><label htmlFor="new-password">{t("login.newPassword")}</label><input id="new-password" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} data-autofocus required /><label htmlFor="confirm-password">{t("login.confirmPassword")}</label><input id="confirm-password" type="password" autoComplete="new-password" minLength={8} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />{error && <p className="inline-error" role="alert">{error}</p>}<button className="primary-button wide" disabled={loading}>{loading ? t("login.savingPassword") : t("login.savePassword")}</button></form></Modal>;
 }
 
 export function ProfileModal({ profile, required, saving, error, onClose, onSave }: { profile: UserProfile; required: boolean; saving: boolean; error: string | null; onClose: () => void; onSave: (displayName: string) => void }) {

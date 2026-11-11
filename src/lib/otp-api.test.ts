@@ -3,8 +3,10 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({
-  signInWithOtp: vi.fn().mockResolvedValue({ error: null }),
-  verifyOtp: vi.fn().mockResolvedValue({ data: { session: { access_token: "token" } }, error: null }),
+  signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+  signUp: vi.fn().mockResolvedValue({ data: { session: { access_token: "token" } }, error: null }),
+  resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+  updateUser: vi.fn().mockResolvedValue({ error: null }),
   getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "restored-token" } }, error: null }),
   signOut: vi.fn().mockResolvedValue({ error: null }),
 }));
@@ -19,17 +21,21 @@ beforeAll(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "public-key");
 });
 
-describe("cliente Supabase OTP", () => {
+describe("cliente Supabase com senha", () => {
   const api = new HttpWorldPixelApi("https://api.example.test");
 
-  it("solicita OTP sem revelar conta existente", async () => {
-    await api.requestOtp("  Pessoa@Exemplo.COM ");
-    expect(auth.signInWithOtp).toHaveBeenCalledWith({ email: "pessoa@exemplo.com", options: { shouldCreateUser: true } });
+  it("faz login e cadastro normalizando o e-mail", async () => {
+    await api.signInWithPassword("  Pessoa@Exemplo.COM ", "senha-segura");
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "pessoa@exemplo.com", password: "senha-segura" });
+    await expect(api.signUpWithPassword("Pessoa@Exemplo.COM", "senha-segura")).resolves.toBe(true);
+    expect(auth.signUp).toHaveBeenCalledWith({ email: "pessoa@exemplo.com", password: "senha-segura" });
   });
 
-  it("confirma OTP de e-mail e restaura a sessão", async () => {
-    await api.verifyOtp("pessoa@exemplo.com", "123 456");
-    expect(auth.verifyOtp).toHaveBeenCalledWith({ email: "pessoa@exemplo.com", token: "123456", type: "email" });
+  it("solicita recuperação, atualiza a senha e restaura a sessão", async () => {
+    await api.requestPasswordReset("pessoa@exemplo.com");
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("pessoa@exemplo.com", { redirectTo: window.location.origin });
+    await api.updatePassword("nova-senha");
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: "nova-senha" });
     await expect(getSession()).resolves.toMatchObject({ access_token: "restored-token" });
   });
 

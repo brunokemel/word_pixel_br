@@ -120,6 +120,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(108, 168, 25
 .modal-card input[aria-invalid="true"] { border-color: #ff6874; }
 .otp-input { text-align: center; font-size: 22px; font-weight: 900; letter-spacing: .48em; padding-left: calc(13px + .48em)!important; font-variant-numeric: tabular-nums; }
 .login-secondary-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 13px; }
+.inline-success { margin-top: 12px; color: #83e6a6; font-size: 13px; line-height: 1.45; }
+.modal-card form label:not(:first-child) { margin-top: 13px; }
 .text-button { padding: 5px 0; border: 0; color: #9db1c5; background: transparent; font-size: 10px; font-weight: 800; cursor: pointer; }
 .text-button:hover { color: white; }
 .text-button:disabled { color: #58697a; cursor: default; }

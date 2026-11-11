@@ -6,8 +6,8 @@ export function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 }
 
-export function normalizeOtp(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 6);
+export function isValidPassword(value: string): boolean {
+  return value.length >= 8;
 }
 
 export function validateDisplayName(value: string): string | null {

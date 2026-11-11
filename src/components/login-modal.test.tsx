@@ -3,55 +3,47 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/lib/i18n";
-import { ApiError, type UserProfile } from "@/lib/types";
+import type { UserProfile } from "@/lib/types";
 import { LoginModal, ProfileModal } from "./ui";
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
-function renderLogin(onRequestOtp = vi.fn().mockResolvedValue(undefined), onVerifyOtp = vi.fn().mockResolvedValue(undefined)) {
+function renderLogin(onSignIn = vi.fn().mockResolvedValue(undefined), onSignUp = vi.fn().mockResolvedValue(true), onRequestPasswordReset = vi.fn().mockResolvedValue(undefined)) {
   window.localStorage.setItem("world-pixel-locale", "pt");
-  render(<I18nProvider><LoginModal onClose={vi.fn()} onRequestOtp={onRequestOtp} onVerifyOtp={onVerifyOtp} /></I18nProvider>);
-  return { onRequestOtp, onVerifyOtp };
+  render(<I18nProvider><LoginModal onClose={vi.fn()} onSignIn={onSignIn} onSignUp={onSignUp} onRequestPasswordReset={onRequestPasswordReset} /></I18nProvider>);
+  return { onSignIn, onSignUp, onRequestPasswordReset };
 }
 
-describe("login por OTP", () => {
-  it("valida, normaliza e solicita o código", async () => {
-    const { onRequestOtp } = renderLogin();
+describe("login por senha", () => {
+  it("valida, normaliza e faz login", async () => {
+    const { onSignIn } = renderLogin();
     fireEvent.change(screen.getByLabelText("Seu e-mail"), { target: { value: "invalido" } });
     fireEvent.submit(screen.getByLabelText("Seu e-mail").closest("form")!);
     expect(screen.getByText("Digite um e-mail válido.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Seu e-mail"), { target: { value: "  Pessoa@Exemplo.COM " } });
-    fireEvent.click(screen.getByRole("button", { name: "Continuar com e-mail" }));
-    await waitFor(() => expect(onRequestOtp).toHaveBeenCalledWith("pessoa@exemplo.com"));
-    expect(screen.getByLabelText("Código de 6 dígitos")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha-segura" } });
+    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await waitFor(() => expect(onSignIn).toHaveBeenCalledWith("pessoa@exemplo.com", "senha-segura"));
   });
 
-  it("aceita colagem do código, confirma e impede código incompleto", async () => {
-    const { onVerifyOtp } = renderLogin();
+  it("cria conta com senha", async () => {
+    const { onSignUp } = renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Criar uma conta" }));
     fireEvent.change(screen.getByLabelText("Seu e-mail"), { target: { value: "pessoa@exemplo.com" } });
-    fireEvent.submit(screen.getByLabelText("Seu e-mail").closest("form")!);
-    const input = await screen.findByLabelText("Código de 6 dígitos");
-    const confirm = screen.getByRole("button", { name: "Confirmar código" });
-    expect(confirm.hasAttribute("disabled")).toBe(true);
-    fireEvent.change(input, { target: { value: "123 456" } });
-    fireEvent.click(confirm);
-    await waitFor(() => expect(onVerifyOtp).toHaveBeenCalledWith("pessoa@exemplo.com", "123456"));
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha-segura" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
+    await waitFor(() => expect(onSignUp).toHaveBeenCalledWith("pessoa@exemplo.com", "senha-segura"));
   });
 
-  it("bloqueia reenvio e mostra código inválido e rate limit", async () => {
-    const request = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new ApiError("RATE_LIMITED", "rate", undefined, 429));
-    const verify = vi.fn().mockRejectedValue(new ApiError("UNAUTHENTICATED", "expired", undefined, 400));
-    renderLogin(request, verify);
+  it("envia recuperação neutra e aplica cooldown", async () => {
+    const recovery = vi.fn().mockResolvedValue(undefined);
+    renderLogin(undefined, undefined, recovery);
+    fireEvent.click(screen.getByRole("button", { name: "Esqueci minha senha" }));
     fireEvent.change(screen.getByLabelText("Seu e-mail"), { target: { value: "pessoa@exemplo.com" } });
     fireEvent.submit(screen.getByLabelText("Seu e-mail").closest("form")!);
-    const input = await screen.findByLabelText("Código de 6 dígitos");
+    await waitFor(() => expect(recovery).toHaveBeenCalledWith("pessoa@exemplo.com"));
+    expect(screen.getByText(/Se o e-mail estiver cadastrado/)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Reenviar em 60s/ }).hasAttribute("disabled")).toBe(true);
-    fireEvent.change(input, { target: { value: "000000" } });
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar código" }));
-    expect(await screen.findByText(/Código inválido ou expirado/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Corrigir e-mail" }));
-    fireEvent.submit(screen.getByLabelText("Seu e-mail").closest("form")!);
-    expect(await screen.findByText(/Muitas tentativas/)).toBeTruthy();
   });
 });
 

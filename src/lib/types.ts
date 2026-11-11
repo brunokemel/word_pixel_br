@@ -126,8 +126,10 @@ export interface WorldPixelApi {
   submitReport(payload: ReportPayload): Promise<ReportRecord>;
   getProfile(): Promise<UserProfile | null>;
   updateProfile(input: { displayName?: string; avatarUrl?: string | null }): Promise<UserProfile>;
-  requestOtp(email: string): Promise<void>;
-  verifyOtp(email: string, token: string): Promise<void>;
+  signInWithPassword(email: string, password: string): Promise<void>;
+  signUpWithPassword(email: string, password: string): Promise<boolean>;
+  requestPasswordReset(email: string): Promise<void>;
+  updatePassword(password: string): Promise<void>;
   signOut(): Promise<void>;
   subscribe(chunkIds: string[], listener: (event: RealtimeEvent) => void): Unsubscribe;
   isLandCell(x: number, y: number): boolean;
