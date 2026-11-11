@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Configurar e-mail/senha, SMTP, URLs de redirect e rate limits no painel do Supabase; depois validar cadastro, login e recuperação com um e-mail real.
+Configurar e validar o fluxo integrado com um projeto Supabase e a API real.
 
 ## Current Phase
-Concluído no código; aguardando configuração externa e teste integrado, sem commit.
+Concluído no código; aguardando configuração externa e teste integrado.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -108,6 +108,14 @@ Concluído no código; aguardando configuração externa e teste integrado, sem 
 - [x] Aplicar cooldown e mensagens neutras na recuperação
 - [x] Criar prompt para configuração correspondente na API/Supabase
 - [x] Atualizar documentação e executar lint, typecheck, testes e build
+
+### Phase 15 — Supabase Auth e identidade `/user`
+**Status:** complete
+- [x] Cadastrar com e-mail, senha e `display_name`, aplicando o username via `PATCH /user`
+- [x] Migrar perfil para `GET/PATCH /user` com todos os campos privados/públicos tipados
+- [x] Validar username e tratar 409, 401 e 400 conforme o contrato
+- [x] Restringir e-mail às configurações da própria conta e revisar vazamento de segredos em logs
+- [x] Atualizar testes/documentação e executar lint, typecheck, testes e build
 
 ## Decisions Made
 | Decision | Rationale |

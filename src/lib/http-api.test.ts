@@ -57,21 +57,21 @@ describe("HttpWorldPixelApi.submitReport", () => {
 });
 
 describe("perfil autenticado", () => {
-  beforeEach(() => vi.stubGlobal("fetch", vi.fn()));
+  beforeEach(() => { window.localStorage.clear(); vi.stubGlobal("fetch", vi.fn()); });
   afterEach(() => vi.unstubAllGlobals());
 
   it("busca e atualiza o perfil real com Bearer e trim já validado", async () => {
-    const apiProfile = { id: "user-id", display_name: "Pixelista", avatar_url: null, created_at: "2026-11-09T00:00:00Z", updated_at: "2026-11-09T00:00:00Z" };
-    vi.mocked(fetch).mockResolvedValueOnce(response(200, { ok: true, data: { profile: apiProfile } })).mockResolvedValueOnce(response(200, { ok: true, data: { profile: apiProfile } }));
+    const apiProfile = { id: "user-id", username: "pixelista", display_name: "Pixelista", avatar_url: null, email: "pessoa@exemplo.com", email_confirmed_at: "2026-11-09T00:00:00Z", created_at: "2026-11-09T00:00:00Z", updated_at: "2026-11-09T00:00:00Z" };
+    vi.mocked(fetch).mockResolvedValueOnce(response(200, { ok: true, data: { user: apiProfile } })).mockResolvedValueOnce(response(200, { ok: true, data: { user: apiProfile } }));
     const api = new HttpWorldPixelApi("https://api.example.test", async () => session, async () => null);
     await expect(api.getProfile()).resolves.toMatchObject({ id: "user-id", displayName: "Pixelista" });
-    await api.updateProfile({ displayName: "Pixelista" });
+    await api.updateProfile({ username: "Novo_User", displayName: "Pixelista" });
     const [, profileInit] = vi.mocked(fetch).mock.calls[0];
     const [patchUrl, patchInit] = vi.mocked(fetch).mock.calls[1];
     expect(new Headers(profileInit?.headers).get("Authorization")).toBe("Bearer supabase-access-token");
-    expect(patchUrl).toBe("https://api.example.test/profile");
+    expect(patchUrl).toBe("https://api.example.test/user");
     expect(patchInit?.method).toBe("PATCH");
-    expect(JSON.parse(String(patchInit?.body))).toEqual({ displayName: "Pixelista" });
+    expect(JSON.parse(String(patchInit?.body))).toEqual({ username: "novo_user", display_name: "Pixelista" });
   });
 
   it("renova uma vez no 401 e não entra em loop", async () => {
@@ -81,5 +81,14 @@ describe("perfil autenticado", () => {
     await expect(api.getProfile()).rejects.toMatchObject({ code: "UNAUTHENTICATED", status: 401 });
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("valida username antes do envio e preserva conflito 409", async () => {
+    const api = new HttpWorldPixelApi("https://api.example.test", async () => session, async () => null);
+    await expect(api.updateProfile({ username: "Inválido!" })).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    expect(fetch).not.toHaveBeenCalled();
+
+    vi.mocked(fetch).mockResolvedValue(response(409, { ok: false, error: { code: "USERNAME_TAKEN", message: "taken" } }));
+    await expect(api.updateProfile({ username: "usuario_valido" })).rejects.toMatchObject({ code: "USERNAME_TAKEN", status: 409 });
   });
 });

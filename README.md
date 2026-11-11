@@ -105,12 +105,14 @@ Principais rotas usadas pelo front-end:
 | `POST` | `/protections/purchase` | Bearer | Comprar uma proteção. |
 | `GET` | `/protections/:id` | Bearer | Consultar uma proteção. |
 | `GET` | `/wallet` | Bearer | Consultar os créditos. |
-| `GET` / `PATCH` | `/profile` | Bearer | Consultar ou atualizar o perfil. |
+| `GET` / `PATCH` | `/user` | Bearer | Consultar ou atualizar a própria conta e o perfil. |
 | `POST` | `/reports` | Bearer | Enviar uma denúncia. |
 
 ### Autenticação e tempo real
 
-O login usa [Supabase Auth](https://supabase.com/docs/guides/auth) com e-mail e senha. O SMTP é usado apenas para recuperação de senha e, quando habilitada, confirmação de e-mail. A sessão é persistida e renovada automaticamente pelo SDK. A chave `anon` é pública e pode estar no navegador, desde que o banco tenha políticas RLS corretas; a chave `service_role` nunca deve ser exposta no front-end.
+O login usa [Supabase Auth](https://supabase.com/docs/guides/auth) com e-mail e senha. O cadastro envia `display_name` como metadado e, quando a sessão fica disponível, aplica o username normalizado com `PATCH /user`. O SMTP é usado para recuperação de senha e, quando habilitada, confirmação de e-mail. A sessão é persistida e renovada automaticamente pelo SDK; o `access_token` segue apenas no header `Authorization: Bearer`. Senhas e tokens nunca são enviados no corpo para a API própria nem registrados em logs. A chave `anon` é pública e pode estar no navegador, desde que o banco tenha políticas RLS corretas; a chave `service_role` nunca deve ser exposta no front-end.
+
+O e-mail retornado por `GET /user` é privado e aparece somente nas configurações da própria conta. O username aceita de 3 a 30 caracteres, exclusivamente letras minúsculas, números e underscore; o frontend converte para minúsculas antes do envio.
 
 Depois de carregar os chunks visíveis, o front assina mudanças da tabela `public.pixel_cells` pelo [Supabase Realtime](https://supabase.com/docs/guides/realtime). Ao trocar o viewport, a assinatura anterior é removida e uma nova é criada para os chunks relevantes.
 

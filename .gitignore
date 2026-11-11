@@ -2,6 +2,7 @@ node_modules/
 .next/
 out/
 coverage/
+Prompts/
 .env*
 !.env.example
 npm-debug.log*

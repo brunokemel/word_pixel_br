@@ -60,3 +60,6 @@
 - Iniciada a Phase 14 para substituir OTP por e-mail/senha e manter SMTP somente nos fluxos de recuperação e eventual confirmação.
 - Phase 14 concluída: login, cadastro, recuperação com cooldown, definição de nova senha, traduções e prompt da API implementados.
 - Validação final passou: lint sem avisos, typecheck, 36 testes e build de produção com Next.js 16.4.5.
+- Iniciada a Phase 15 para alinhar o frontend ao contrato final de Supabase Auth e identidade em `/user`.
+- Phase 15 concluída: cadastro com metadado `display_name`, username validado/aplicado em `/user`, perfil completo, e-mail privado, recuperação e limpeza de sessão em 401 implementados.
+- Validação final passou: lint, typecheck, 37 testes, build de produção, `git diff --check` e auditoria de logs/segredos.

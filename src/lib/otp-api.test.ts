@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({
   signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
@@ -21,14 +21,22 @@ beforeAll(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "public-key");
 });
 
+beforeEach(() => {
+  window.localStorage.clear();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, data: { user: { id: "user-id", username: "novo_user", display_name: "Pixelista", avatar_url: null, email: "pessoa@exemplo.com", email_confirmed_at: null, created_at: "2026-11-09T00:00:00Z", updated_at: "2026-11-09T00:00:00Z" } } }), { status: 200, headers: { "Content-Type": "application/json" } })));
+});
+
 describe("cliente Supabase com senha", () => {
   const api = new HttpWorldPixelApi("https://api.example.test");
 
   it("faz login e cadastro normalizando o e-mail", async () => {
     await api.signInWithPassword("  Pessoa@Exemplo.COM ", "senha-segura");
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "pessoa@exemplo.com", password: "senha-segura" });
-    await expect(api.signUpWithPassword("Pessoa@Exemplo.COM", "senha-segura")).resolves.toBe(true);
-    expect(auth.signUp).toHaveBeenCalledWith({ email: "pessoa@exemplo.com", password: "senha-segura" });
+    await expect(api.signUpWithPassword("Pessoa@Exemplo.COM", "senha-segura", "Pixelista", "Novo_User")).resolves.toBe(true);
+    expect(auth.signUp).toHaveBeenCalledWith({ email: "pessoa@exemplo.com", password: "senha-segura", options: { data: { display_name: "Pixelista" } } });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("https://api.example.test/user");
+    expect(JSON.parse(String(init?.body))).toEqual({ username: "novo_user" });
   });
 
   it("solicita recuperação, atualiza a senha e restaura a sessão", async () => {

@@ -29,10 +29,12 @@ describe("login por senha", () => {
   it("cria conta com senha", async () => {
     const { onSignUp } = renderLogin();
     fireEvent.click(screen.getByRole("button", { name: "Criar uma conta" }));
+    fireEvent.change(screen.getByLabelText("Nome de artista"), { target: { value: "Pixelista" } });
+    fireEvent.change(screen.getByLabelText("Nome de usuário"), { target: { value: "Novo_User" } });
     fireEvent.change(screen.getByLabelText("Seu e-mail"), { target: { value: "pessoa@exemplo.com" } });
     fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha-segura" } });
     fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
-    await waitFor(() => expect(onSignUp).toHaveBeenCalledWith("pessoa@exemplo.com", "senha-segura"));
+    await waitFor(() => expect(onSignUp).toHaveBeenCalledWith("pessoa@exemplo.com", "senha-segura", "Pixelista", "novo_user"));
   });
 
   it("envia recuperação neutra e aplica cooldown", async () => {
@@ -48,13 +50,15 @@ describe("login por senha", () => {
 });
 
 describe("perfil", () => {
-  const profile: UserProfile = { id: "user-id", displayName: "Artista-1234ABCD" };
+  const profile: UserProfile = { id: "user-id", username: null, displayName: "Artista-1234ABCD", avatarUrl: null, email: "pessoa@exemplo.com", emailConfirmedAt: null, createdAt: "2026-11-09T00:00:00Z", updatedAt: "2026-11-09T00:00:00Z" };
   it("abre onboarding para nome temporário e envia nome com trim", () => {
     window.localStorage.setItem("world-pixel-locale", "pt");
     const onSave = vi.fn();
     render(<I18nProvider><ProfileModal profile={profile} required saving={false} error={null} onClose={vi.fn()} onSave={onSave} /></I18nProvider>);
+    fireEvent.change(screen.getByLabelText("Nome de usuário"), { target: { value: "Novo_User" } });
     fireEvent.change(screen.getByLabelText("Nome de artista"), { target: { value: "  Pixelista  " } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
-    expect(onSave).toHaveBeenCalledWith("Pixelista");
+    expect(onSave).toHaveBeenCalledWith({ displayName: "Pixelista", username: "novo_user" });
+    expect(screen.getByLabelText("E-mail da conta")).toHaveProperty("value", "pessoa@exemplo.com");
   });
 });

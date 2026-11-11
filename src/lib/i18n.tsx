@@ -96,10 +96,16 @@ const pt = {
   "profile.editTitle": "Edite seu perfil.",
   "profile.description": "Escolha um nome público para assinar suas pinturas.",
   "profile.name": "Nome de artista",
+  "profile.username": "Nome de usuário",
+  "profile.usernameHint": "Use de 3 a 30 letras minúsculas, números ou underscore.",
+  "profile.email": "E-mail da conta",
+  "profile.emailPrivate": "Privado: visível somente nas configurações da sua conta.",
   "profile.save": "Salvar perfil",
   "profile.saving": "Salvando…",
   "profile.saved": "Perfil atualizado.",
   "profile.error.name": "O nome deve ter entre 1 e 40 caracteres.",
+  "profile.error.usernameValidation": "Use de 3 a 30 caracteres: apenas letras minúsculas, números e underscore.",
+  "profile.error.usernameTaken": "Este nome de usuário já está em uso.",
   "profile.error.load": "Não foi possível carregar seu perfil. Tente novamente.",
   "profile.error.save": "Não foi possível salvar o perfil.",
   "profile.retry": "Tentar novamente",
@@ -190,6 +196,7 @@ export type TranslationKey = keyof typeof pt;
 type Catalog = Record<TranslationKey, string>;
 
 const en: Catalog = {
+  "profile.username": "Username", "profile.usernameHint": "Use 3 to 30 lowercase letters, numbers, or underscores.", "profile.email": "Account email", "profile.emailPrivate": "Private: visible only in your account settings.", "profile.error.usernameValidation": "Use 3 to 30 characters: lowercase letters, numbers, and underscores only.", "profile.error.usernameTaken": "This username is already in use.",
   "language.label": "Language", "header.live": "LIVE", "header.help": "How it works", "header.balance": "balance", "header.logout": "Log out", "header.login": "Log in",
   "tools.label": "Map tools", "tools.navigate": "Explore", "tools.paint": "Paint", "tools.protect": "Protect", "palette.label": "Color palette", "palette.select": "Select color {color}", "palette.groups": "Tone families", "palette.group.neutral": "Neutrals", "palette.group.warm": "Warm", "palette.group.nature": "Nature", "palette.group.cool": "Cool",
   "map.label": "Interactive world pixel map", "map.loading": "Loading the world…", "map.zoomPaint": "Zoom in to paint", "map.zoomProtect": "Zoom in to protect", "map.protectHint": "Click to select a 16 × 16 protection block", "map.stylusHint": "For greater precision, use a capacitive stylus.",
@@ -208,6 +215,7 @@ const en: Catalog = {
 };
 
 const es: Catalog = {
+  "profile.username": "Nombre de usuario", "profile.usernameHint": "Usa de 3 a 30 letras minúsculas, números o guiones bajos.", "profile.email": "Correo de la cuenta", "profile.emailPrivate": "Privado: visible solo en la configuración de tu cuenta.", "profile.error.usernameValidation": "Usa de 3 a 30 caracteres: solo letras minúsculas, números y guiones bajos.", "profile.error.usernameTaken": "Este nombre de usuario ya está en uso.",
   "language.label": "Idioma", "header.live": "EN VIVO", "header.help": "Cómo funciona", "header.balance": "saldo", "header.logout": "Salir", "header.login": "Entrar",
   "tools.label": "Herramientas del mapa", "tools.navigate": "Explorar", "tools.paint": "Pintar", "tools.protect": "Proteger", "palette.label": "Paleta de colores", "palette.select": "Seleccionar color {color}", "palette.groups": "Familias de tonos", "palette.group.neutral": "Neutros", "palette.group.warm": "Cálidos", "palette.group.nature": "Naturaleza", "palette.group.cool": "Fríos",
   "map.label": "Mapamundi interactivo de píxeles", "map.loading": "Cargando el mundo…", "map.zoomPaint": "Acércate para pintar", "map.zoomProtect": "Acércate para proteger", "map.protectHint": "Haz clic para seleccionar un bloque de protección 16 × 16", "map.stylusHint": "Para mayor precisión, usa un lápiz capacitivo.",

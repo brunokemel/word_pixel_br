@@ -78,12 +78,12 @@ export function WorldPixelApp() {
       const currentProfile = await worldPixelApi.getProfile();
       setProfileLoadFailed(false);
       setProfile(currentProfile);
-      setProfileOpen(currentProfile.displayName.startsWith("Artista-"));
+      setProfileOpen(!currentProfile.username);
       try { setBalance((await worldPixelApi.getWallet()).credits); } catch (error) {
         if (!(error instanceof ApiError && error.code === "UNAUTHENTICATED")) setConnected(false);
       }
     } catch (error) {
-      if (error instanceof ApiError && error.code === "UNAUTHENTICATED") { setProfile(null); setBalance(0); }
+      if (error instanceof ApiError && error.code === "UNAUTHENTICATED") { setProfile(null); setBalance(0); setLoginOpen(true); }
       else { setProfileLoadFailed(true); toast(t("profile.error.load"), "error"); }
     } finally { setAuthReady(true); }
   }, [t, toast]);
@@ -102,14 +102,20 @@ export function WorldPixelApp() {
       if (session) window.setTimeout(() => void refreshPrivateState(), 0);
       else { setProfile(null); setBalance(0); setProfileOpen(false); setAuthReady(true); }
     });
-    return () => { active = false; subscription?.data.subscription.unsubscribe(); };
+    const handleUnauthenticated = () => { setProfile(null); setBalance(0); setProfileOpen(false); setLoginOpen(true); setAuthReady(true); };
+    window.addEventListener("world-pixel:unauthenticated", handleUnauthenticated);
+    return () => { active = false; subscription?.data.subscription.unsubscribe(); window.removeEventListener("world-pixel:unauthenticated", handleUnauthenticated); };
   }, [refreshPrivateState]);
 
-  const saveProfile = useCallback(async (displayName: string) => {
+  const saveProfile = useCallback(async (input: { username: string; displayName: string }) => {
     if (profileSaving) return;
     setProfileSaving(true); setProfileError(null);
-    try { const updated = await worldPixelApi.updateProfile({ displayName }); setProfile(updated); setProfileOpen(false); toast(t("profile.saved"), "success"); }
-    catch (error) { setProfileError(errorMessage(error, "profile.error.save")); }
+    try { const updated = await worldPixelApi.updateProfile(input); setProfile(updated); setProfileOpen(false); toast(t("profile.saved"), "success"); }
+    catch (error) {
+      if (error instanceof ApiError && error.code === "USERNAME_TAKEN") setProfileError(t("profile.error.usernameTaken"));
+      else if (error instanceof ApiError && error.code === "VALIDATION_ERROR") setProfileError(t("profile.error.usernameValidation"));
+      else setProfileError(errorMessage(error, "profile.error.save"));
+    }
     finally { setProfileSaving(false); }
   }, [errorMessage, profileSaving, t, toast]);
 
@@ -234,9 +240,9 @@ export function WorldPixelApp() {
       {profileLoadFailed && <div className="profile-retry" role="alert"><span>{t("profile.error.load")}</span><button onClick={() => void refreshPrivateState()}>{t("profile.retry")}</button></div>}
       <div className="map-legend"><span><i className="free" /> {t("legend.free")}</span><span><LockKeyhole size={13} /> {t("legend.protected")}</span></div>
       <div className="toast-region" aria-live="polite">{toasts.map((item) => <div key={item.id} className={`toast ${item.tone}`}>{item.message}</div>)}</div>
-      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} onSignIn={(email, password) => worldPixelApi.signInWithPassword(email, password)} onSignUp={(email, password) => worldPixelApi.signUpWithPassword(email, password)} onRequestPasswordReset={(email) => worldPixelApi.requestPasswordReset(email)} />}
+      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} onSignIn={(email, password) => worldPixelApi.signInWithPassword(email, password)} onSignUp={(email, password, displayName, username) => worldPixelApi.signUpWithPassword(email, password, displayName, username)} onRequestPasswordReset={(email) => worldPixelApi.requestPasswordReset(email)} />}
       {passwordRecoveryOpen && <ResetPasswordModal onSave={async (password) => { await worldPixelApi.updatePassword(password); setPasswordRecoveryOpen(false); await refreshPrivateState(); toast(t("login.passwordUpdated"), "success"); }} />}
-      {profile && profileOpen && <ProfileModal profile={profile} required={profile.displayName.startsWith("Artista-")} saving={profileSaving} error={profileError} onClose={() => setProfileOpen(false)} onSave={(name) => void saveProfile(name)} />}
+      {profile && profileOpen && <ProfileModal profile={profile} required={!profile.username} saving={profileSaving} error={profileError} onClose={() => setProfileOpen(false)} onSave={(input) => void saveProfile(input)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {reportCell && <ReportModal cell={reportCell} submitting={reportSubmitting} submitError={reportError} onClose={() => { if (!reportSubmitting) { setReportCell(null); setReportError(null); } }} onSubmit={submitReport} />}
       {quote && <ProtectionModal quote={quote} status={purchaseStatus} onClose={() => { setQuote(null); setProtectionDraft(null); }} onConfirm={confirmProtection} />}

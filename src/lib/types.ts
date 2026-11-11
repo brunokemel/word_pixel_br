@@ -54,10 +54,13 @@ export interface ProtectionSelection {
 
 export interface UserProfile {
   id: string;
+  username: string | null;
   displayName: string;
-  avatarUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  avatarUrl: string | null;
+  email: string;
+  emailConfirmedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface WalletBalance {
@@ -98,6 +101,7 @@ export type ApiErrorCode =
   | "INTERNAL_ERROR"
   | "NETWORK_ERROR"
   | "CONFIGURATION_ERROR"
+  | "USERNAME_TAKEN"
   | "VALIDATION_ERROR";
 
 export class ApiError extends Error {
@@ -125,9 +129,9 @@ export interface WorldPixelApi {
   getWallet(): Promise<WalletBalance>;
   submitReport(payload: ReportPayload): Promise<ReportRecord>;
   getProfile(): Promise<UserProfile | null>;
-  updateProfile(input: { displayName?: string; avatarUrl?: string | null }): Promise<UserProfile>;
+  updateProfile(input: { username?: string; displayName?: string; avatarUrl?: string | null }): Promise<UserProfile>;
   signInWithPassword(email: string, password: string): Promise<void>;
-  signUpWithPassword(email: string, password: string): Promise<boolean>;
+  signUpWithPassword(email: string, password: string, displayName: string, username: string): Promise<boolean>;
   requestPasswordReset(email: string): Promise<void>;
   updatePassword(password: string): Promise<void>;
   signOut(): Promise<void>;

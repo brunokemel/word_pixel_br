@@ -2,17 +2,18 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { cellToBounds, getChunkId } from "./grid";
 import { colorIdToHex } from "./palette";
 import { getSession, getSupabase } from "./supabase";
-import { normalizeEmail } from "./auth";
+import { normalizeEmail, validateUsername } from "./auth";
 import type { ReportPayload, ReportRecord } from "./reports";
 import { ApiError, type ApiErrorCode, type GridCell, type MapBounds, type PixelChange, type PixelChunk, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type RealtimeEvent, type UserProfile, type WalletBalance, type WorldPixelApi } from "./types";
 
 type SuccessEnvelope<T> = { ok: true; data: T; request_id?: string };
 type ErrorEnvelope = { ok: false; error: { code?: string; message?: string; request_id?: string } };
 type ApiPixel = { cell_x?: number; cell_y?: number; x?: number; y?: number; chunk_x?: number; chunk_y?: number; color: number; author_id?: string; authorId?: string; version?: number; updated_at?: string; updatedAt?: string };
-type ApiProfile = { id: string; display_name: string; avatar_url: string | null; created_at: string; updated_at: string };
+type ApiUser = { id: string; username: string | null; display_name: string; avatar_url: string | null; email: string; email_confirmed_at: string | null; created_at: string; updated_at: string };
 
 const API_URL = process.env.NEXT_PUBLIC_WORLD_PIXEL_API_URL?.replace(/\/$/, "") ?? "";
 const TIMEOUT_MS = 60_000;
+const PENDING_USERNAME_KEY = "world-pixel-pending-username";
 
 async function refreshSession() {
   const result = await getSupabase()?.auth.refreshSession();
@@ -26,7 +27,7 @@ function authApiError(error: { message: string; status?: number }): ApiError {
 }
 
 function apiCode(code: string | undefined): ApiErrorCode {
-  const known: ApiErrorCode[] = ["UNAUTHENTICATED", "RATE_LIMITED", "CELL_NOT_LAND", "AREA_PROTECTED", "INSUFFICIENT_CREDITS", "AREA_CONFLICT", "IDEMPOTENCY_CONFLICT", "FORBIDDEN", "NOT_FOUND", "INTERNAL_ERROR", "VALIDATION_ERROR"];
+  const known: ApiErrorCode[] = ["UNAUTHENTICATED", "RATE_LIMITED", "CELL_NOT_LAND", "AREA_PROTECTED", "INSUFFICIENT_CREDITS", "AREA_CONFLICT", "IDEMPOTENCY_CONFLICT", "FORBIDDEN", "NOT_FOUND", "INTERNAL_ERROR", "USERNAME_TAKEN", "VALIDATION_ERROR"];
   return known.includes(code as ApiErrorCode) ? code as ApiErrorCode : "INTERNAL_ERROR";
 }
 
@@ -44,8 +45,8 @@ function toProtection(raw: Record<string, unknown>): ProtectedArea {
   };
 }
 
-function toProfile(profile: ApiProfile): UserProfile {
-  return { id: profile.id, displayName: profile.display_name, avatarUrl: profile.avatar_url ?? undefined, createdAt: profile.created_at, updatedAt: profile.updated_at };
+function toProfile(user: ApiUser): UserProfile {
+  return { id: user.id, username: user.username, displayName: user.display_name, avatarUrl: user.avatar_url, email: user.email, emailConfirmedAt: user.email_confirmed_at, createdAt: user.created_at, updatedAt: user.updated_at };
 }
 
 export class HttpWorldPixelApi implements WorldPixelApi {
@@ -80,7 +81,10 @@ export class HttpWorldPixelApi implements WorldPixelApi {
           const refreshed = await this.sessionRefresher();
           if (refreshed) return this.request<T>(path, init, authenticated, true);
         }
-        if (response.status === 401 && authenticated && retried) await getSupabase()?.auth.signOut({ scope: "local" });
+        if (response.status === 401 && authenticated) {
+          await getSupabase()?.auth.signOut({ scope: "local" });
+          window.dispatchEvent(new Event("world-pixel:unauthenticated"));
+        }
         throw new ApiError(apiCode(error.code), error.message ?? `Falha HTTP ${response.status}.`, error.request_id, response.status);
       }
       return payload.data;
@@ -136,12 +140,20 @@ export class HttpWorldPixelApi implements WorldPixelApi {
   }
 
   async getProfile() {
-    const data = await this.request<{ profile: ApiProfile }>("/profile", {}, true);
-    return toProfile(data.profile);
+    const pendingUsername = window.localStorage.getItem(PENDING_USERNAME_KEY);
+    if (pendingUsername) {
+      await this.updateProfile({ username: pendingUsername });
+      window.localStorage.removeItem(PENDING_USERNAME_KEY);
+    }
+    const data = await this.request<{ user: ApiUser }>("/user", {}, true);
+    return toProfile(data.user);
   }
-  async updateProfile(input: { displayName?: string; avatarUrl?: string | null }) {
-    const data = await this.request<{ profile: ApiProfile }>("/profile", { method: "PATCH", body: JSON.stringify(input) }, true);
-    return toProfile(data.profile);
+  async updateProfile(input: { username?: string; displayName?: string; avatarUrl?: string | null }) {
+    const username = input.username === undefined ? undefined : validateUsername(input.username);
+    if (input.username !== undefined && !username) throw new ApiError("VALIDATION_ERROR", "O nome de usuário deve ter entre 3 e 30 caracteres e conter apenas letras minúsculas, números e underscore.", undefined, 400);
+    const body = { ...(username === undefined ? {} : { username }), ...(input.displayName === undefined ? {} : { display_name: input.displayName }), ...(input.avatarUrl === undefined ? {} : { avatar_url: input.avatarUrl }) };
+    const data = await this.request<{ user: ApiUser }>("/user", { method: "PATCH", body: JSON.stringify(body) }, true);
+    return toProfile(data.user);
   }
   async signInWithPassword(email: string, password: string) {
     const supabase = getSupabase();
@@ -149,11 +161,15 @@ export class HttpWorldPixelApi implements WorldPixelApi {
     const { error } = await supabase.auth.signInWithPassword({ email: normalizeEmail(email), password });
     if (error) throw authApiError(error);
   }
-  async signUpWithPassword(email: string, password: string) {
+  async signUpWithPassword(email: string, password: string, displayName: string, requestedUsername: string) {
     const supabase = getSupabase();
     if (!supabase) throw new ApiError("CONFIGURATION_ERROR", "Supabase não configurado.");
-    const { data, error } = await supabase.auth.signUp({ email: normalizeEmail(email), password });
+    const username = validateUsername(requestedUsername);
+    if (!username) throw new ApiError("VALIDATION_ERROR", "O nome de usuário deve ter entre 3 e 30 caracteres e conter apenas letras minúsculas, números e underscore.", undefined, 400);
+    const { data, error } = await supabase.auth.signUp({ email: normalizeEmail(email), password, options: { data: { display_name: displayName } } });
     if (error) throw authApiError(error);
+    if (data.session) await this.updateProfile({ username });
+    else window.localStorage.setItem(PENDING_USERNAME_KEY, username);
     return Boolean(data.session);
   }
   async requestPasswordReset(email: string) {

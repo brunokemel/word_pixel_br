@@ -37,3 +37,7 @@
 - O projeto não tinha ESLint configurado. Next 16 removeu `next lint`; a documentação local recomenda ESLint CLI com `eslint-config-next/core-web-vitals` e `typescript`.
 - O cliente Supabase já usa `detectSessionInUrl: true`, permitindo concluir a recuperação de senha após o redirect e reagir ao evento `PASSWORD_RECOVERY`.
 - O limite visual de 60 segundos deve complementar, não substituir, os rate limits do Supabase Auth; SMTP próprio continua sujeito às cotas do provedor.
+- O fluxo atual já usa `signInWithPassword`, `resetPasswordForEmail` e `updateUser`, mas o cadastro envia apenas e-mail/senha e a API ainda aponta para `/profile`.
+- O contrato novo exige `display_name` nos metadados do `signUp`, username normalizado após a sessão e perfil autoritativo completo em `GET /user`.
+- Quando a confirmação de e-mail impede sessão imediata no cadastro, o frontend guarda somente o username normalizado e o aplica em `PATCH /user` assim que a sessão confirmada é restaurada; senha e tokens nunca passam por esse armazenamento.
+- A auditoria final encontrou o e-mail apenas no modal de configurações da própria conta e nenhum log de senha, access token ou refresh token.

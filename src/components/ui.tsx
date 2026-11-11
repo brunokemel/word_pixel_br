@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import type { GridCell, ProtectionQuote, ToolMode, UserProfile } from "@/lib/types";
 import { localeLabels, type Locale, useI18n } from "@/lib/i18n";
 import { COLOR_GROUPS, COLOR_PALETTE, colorGroupIdFor, type ColorGroupId } from "@/lib/palette";
-import { isValidEmail, isValidPassword, normalizeEmail, validateDisplayName } from "@/lib/auth";
+import { isValidEmail, isValidPassword, normalizeEmail, validateDisplayName, validateUsername } from "@/lib/auth";
 import { reportCategories, type ReportCategory, validateReport } from "@/lib/reports";
 import { ApiError } from "@/lib/types";
 import logoMaior from "@/logo/logoMaior.png";
@@ -153,13 +153,15 @@ export function ReportModal({ cell, submitting, submitError, onClose, onSubmit }
 export function LoginModal({ onClose, onSignIn, onSignUp, onRequestPasswordReset }: {
   onClose: () => void;
   onSignIn: (email: string, password: string) => Promise<void>;
-  onSignUp: (email: string, password: string) => Promise<boolean>;
+  onSignUp: (email: string, password: string, displayName: string, username: string) => Promise<boolean>;
   onRequestPasswordReset: (email: string) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<"login" | "signup" | "recovery">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -185,12 +187,20 @@ export function LoginModal({ onClose, onSignIn, onSignUp, onRequestPasswordReset
     try {
       if (mode === "login") await onSignIn(normalized, password);
       else {
-        const authenticated = await onSignUp(normalized, password);
+        const normalizedDisplayName = validateDisplayName(displayName);
+        const normalizedUsername = validateUsername(username);
+        if (!normalizedDisplayName) { setError(t("profile.error.name")); return; }
+        if (!normalizedUsername) { setError(t("profile.error.usernameValidation")); return; }
+        const authenticated = await onSignUp(normalized, password, normalizedDisplayName, normalizedUsername);
         if (!authenticated) { setMessage(t("login.signupConfirmation")); return; }
       }
       onClose();
     }
-    catch (caught) { setError(authError(caught)); }
+    catch (caught) {
+      if (caught instanceof ApiError && caught.code === "USERNAME_TAKEN") setError(t("profile.error.usernameTaken"));
+      else if (caught instanceof ApiError && caught.code === "VALIDATION_ERROR") setError(t("profile.error.usernameValidation"));
+      else setError(authError(caught));
+    }
     finally { busyRef.current = false; setLoading(false); }
   };
   const requestRecovery = async () => {
@@ -204,7 +214,7 @@ export function LoginModal({ onClose, onSignIn, onSignUp, onRequestPasswordReset
     finally { busyRef.current = false; setLoading(false); }
   };
   const switchMode = (next: typeof mode) => { setMode(next); setPassword(""); setError(null); setMessage(null); };
-  return <Modal onClose={onClose} label={t("login.label")}><div className="modal-icon pink"><Brush size={24} /></div><span className="eyebrow">{t("login.eyebrow")}</span><h2>{t(`login.${mode}Title`)}</h2><p>{t(`login.${mode}Description`)}</p><form onSubmit={(event) => { event.preventDefault(); void (mode === "recovery" ? requestRecovery() : submitCredentials()); }}><label htmlFor="email">{t("login.email")}</label><input id="email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("login.placeholder")} required data-autofocus aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} />{mode !== "recovery" && <><label htmlFor="password">{t("login.password")}</label><input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required /></>}<button className="primary-button wide" disabled={loading || (mode === "recovery" && seconds > 0)}>{loading ? t("login.loading") : mode === "login" ? t("login.signIn") : mode === "signup" ? t("login.signUp") : seconds > 0 ? t("login.resendIn", { seconds }) : t("login.recover")}</button></form>{error && <p id="login-error" className="inline-error" role="alert" aria-live="polite">{error}</p>}{message && <p className="inline-success" role="status" aria-live="polite">{message}</p>}<div className="login-secondary-actions">{mode !== "login" && <button type="button" className="text-button" onClick={() => switchMode("login")}>{t("login.haveAccount")}</button>}{mode === "login" && <><button type="button" className="text-button" onClick={() => switchMode("signup")}>{t("login.createAccount")}</button><button type="button" className="text-button" onClick={() => switchMode("recovery")}>{t("login.forgotPassword")}</button></>}</div><small className="fine-print">{t("login.passwordHint")}</small></Modal>;
+  return <Modal onClose={onClose} label={t("login.label")}><div className="modal-icon pink"><Brush size={24} /></div><span className="eyebrow">{t("login.eyebrow")}</span><h2>{t(`login.${mode}Title`)}</h2><p>{t(`login.${mode}Description`)}</p><form onSubmit={(event) => { event.preventDefault(); void (mode === "recovery" ? requestRecovery() : submitCredentials()); }}>{mode === "signup" && <><label htmlFor="signup-display-name">{t("profile.name")}</label><input id="signup-display-name" autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={40} required /><label htmlFor="signup-username">{t("profile.username")}</label><input id="signup-username" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase())} minLength={3} maxLength={30} pattern="[a-z0-9_]+" required /><small className="fine-print">{t("profile.usernameHint")}</small></>}<label htmlFor="email">{t("login.email")}</label><input id="email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("login.placeholder")} required data-autofocus aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} />{mode !== "recovery" && <><label htmlFor="password">{t("login.password")}</label><input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required /></>}<button className="primary-button wide" disabled={loading || (mode === "recovery" && seconds > 0)}>{loading ? t("login.loading") : mode === "login" ? t("login.signIn") : mode === "signup" ? t("login.signUp") : seconds > 0 ? t("login.resendIn", { seconds }) : t("login.recover")}</button></form>{error && <p id="login-error" className="inline-error" role="alert" aria-live="polite">{error}</p>}{message && <p className="inline-success" role="status" aria-live="polite">{message}</p>}<div className="login-secondary-actions">{mode !== "login" && <button type="button" className="text-button" onClick={() => switchMode("login")}>{t("login.haveAccount")}</button>}{mode === "login" && <><button type="button" className="text-button" onClick={() => switchMode("signup")}>{t("login.createAccount")}</button><button type="button" className="text-button" onClick={() => switchMode("recovery")}>{t("login.forgotPassword")}</button></>}</div><small className="fine-print">{t("login.passwordHint")}</small></Modal>;
 }
 
 export function ResetPasswordModal({ onSave }: { onSave: (password: string) => Promise<void> }) {
@@ -216,11 +226,12 @@ export function ResetPasswordModal({ onSave }: { onSave: (password: string) => P
   return <Modal onClose={() => undefined} label={t("login.resetTitle")}><div className="modal-icon pink"><LockKeyhole size={24} /></div><h2>{t("login.resetTitle")}</h2><p>{t("login.resetDescription")}</p><form onSubmit={(event) => { event.preventDefault(); if (!isValidPassword(password)) { setError(t("login.error.password")); return; } if (password !== confirmation) { setError(t("login.error.passwordMatch")); return; } setLoading(true); setError(null); void onSave(password).catch(() => setError(t("login.error.generic"))).finally(() => setLoading(false)); }}><label htmlFor="new-password">{t("login.newPassword")}</label><input id="new-password" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} data-autofocus required /><label htmlFor="confirm-password">{t("login.confirmPassword")}</label><input id="confirm-password" type="password" autoComplete="new-password" minLength={8} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />{error && <p className="inline-error" role="alert">{error}</p>}<button className="primary-button wide" disabled={loading}>{loading ? t("login.savingPassword") : t("login.savePassword")}</button></form></Modal>;
 }
 
-export function ProfileModal({ profile, required, saving, error, onClose, onSave }: { profile: UserProfile; required: boolean; saving: boolean; error: string | null; onClose: () => void; onSave: (displayName: string) => void }) {
+export function ProfileModal({ profile, required, saving, error, onClose, onSave }: { profile: UserProfile; required: boolean; saving: boolean; error: string | null; onClose: () => void; onSave: (input: { username: string; displayName: string }) => void }) {
   const { t } = useI18n();
   const [name, setName] = useState(profile.displayName.startsWith("Artista-") ? "" : profile.displayName);
+  const [username, setUsername] = useState(profile.username ?? "");
   const [fieldError, setFieldError] = useState<string | null>(null);
-  return <Modal onClose={required ? () => undefined : onClose} label={required ? t("profile.onboardingLabel") : t("profile.edit")}><span className="eyebrow">{t("profile.eyebrow")}</span><h2>{required ? t("profile.onboardingTitle") : t("profile.editTitle")}</h2><p>{t("profile.description")}</p><form onSubmit={(event) => { event.preventDefault(); const normalized = validateDisplayName(name); if (!normalized) { setFieldError(t("profile.error.name")); return; } setFieldError(null); onSave(normalized); }}><label htmlFor="display-name">{t("profile.name")}</label><input id="display-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoFocus aria-invalid={Boolean(fieldError)} aria-describedby={fieldError ? "profile-name-error" : undefined} />{fieldError && <p id="profile-name-error" className="field-error">{fieldError}</p>}{error && <p className="inline-error" role="alert">{error}</p>}<div className="modal-actions">{!required && <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>{t("report.cancel")}</button>}<button className="primary-button" disabled={saving}>{saving ? t("profile.saving") : t("profile.save")}</button></div></form></Modal>;
+  return <Modal onClose={required ? () => undefined : onClose} label={required ? t("profile.onboardingLabel") : t("profile.edit")}><span className="eyebrow">{t("profile.eyebrow")}</span><h2>{required ? t("profile.onboardingTitle") : t("profile.editTitle")}</h2><p>{t("profile.description")}</p><form onSubmit={(event) => { event.preventDefault(); const normalizedName = validateDisplayName(name); const normalizedUsername = validateUsername(username); if (!normalizedName) { setFieldError(t("profile.error.name")); return; } if (!normalizedUsername) { setFieldError(t("profile.error.usernameValidation")); return; } setFieldError(null); onSave({ username: normalizedUsername, displayName: normalizedName }); }}><label htmlFor="profile-email">{t("profile.email")}</label><input id="profile-email" type="email" value={profile.email} readOnly disabled /><small className="fine-print">{t("profile.emailPrivate")}</small><label htmlFor="profile-username">{t("profile.username")}</label><input id="profile-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase())} minLength={3} maxLength={30} pattern="[a-z0-9_]+" autoFocus aria-invalid={Boolean(fieldError)} aria-describedby={fieldError ? "profile-name-error" : undefined} /><label htmlFor="display-name">{t("profile.name")}</label><input id="display-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} />{fieldError && <p id="profile-name-error" className="field-error">{fieldError}</p>}{error && <p className="inline-error" role="alert">{error}</p>}<div className="modal-actions">{!required && <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>{t("report.cancel")}</button>}<button className="primary-button" disabled={saving}>{saving ? t("profile.saving") : t("profile.save")}</button></div></form></Modal>;
 }
 
 export function HelpModal({ onClose }: { onClose: () => void }) {
