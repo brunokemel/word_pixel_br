@@ -197,8 +197,8 @@ export function LoginModal({ onClose, onSignIn, onSignUp, onRequestPasswordReset
       onClose();
     }
     catch (caught) {
-      if (caught instanceof ApiError && caught.code === "USERNAME_TAKEN") setError(t("profile.error.usernameTaken"));
-      else if (caught instanceof ApiError && caught.code === "VALIDATION_ERROR") setError(t("profile.error.usernameValidation"));
+      if (caught instanceof ApiError && caught.code === "USERNAME_TAKEN") { setError(t("profile.error.usernameTaken")); document.getElementById("signup-username")?.focus(); }
+      else if (caught instanceof ApiError && caught.code === "VALIDATION_ERROR") { setError(t("profile.error.usernameValidation")); document.getElementById("signup-username")?.focus(); }
       else setError(authError(caught));
     }
     finally { busyRef.current = false; setLoading(false); }
@@ -236,7 +236,7 @@ export function ProfileModal({ profile, required, saving, error, onClose, onSave
 
 export function HelpModal({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
-  return <Modal onClose={onClose} label={t("help.label")}><span className="eyebrow">{t("help.eyebrow")}</span><h2>{t("help.title")}</h2><div className="steps"><div><b>01</b><span><strong>{t("help.zoomTitle")}</strong><small>{t("help.zoomText")}</small></span></div><div><b>02</b><span><strong>{t("help.paintTitle")}</strong><small>{t("help.paintText")}</small></span></div><div><b>03</b><span><strong>{t("help.protectTitle")}</strong><small>{t("help.protectText")}</small></span></div></div><div className="rules"><strong>{t("help.rulesTitle")}</strong><p>{t("help.rulesText")}</p></div><Link className="institutional-link" href="/sobre">Sobre, termos, privacidade e regras</Link></Modal>;
+  return <Modal onClose={onClose} label={t("help.label")}><span className="eyebrow">{t("help.eyebrow")}</span><h2>{t("help.title")}</h2><div className="steps"><div><b>01</b><span><strong>{t("help.zoomTitle")}</strong><small>{t("help.zoomText")}</small></span></div><div><b>02</b><span><strong>{t("help.paintTitle")}</strong><small>{t("help.paintText")}</small></span></div><div><b>03</b><span><strong>{t("help.protectTitle")}</strong><small>{t("help.protectText")}</small></span></div></div><div className="rules"><strong>{t("help.rulesTitle")}</strong><p>{t("help.rulesText")}</p></div><Link className="institutional-link" href="/sobre">{t("help.legalLink")}</Link></Modal>;
 }
 
 export function ProtectionModal({ quote, status, onClose, onConfirm }: { quote: ProtectionQuote; status: "review" | "pending" | "confirmed" | "error"; onClose: () => void; onConfirm: () => void }) {
@@ -244,7 +244,7 @@ export function ProtectionModal({ quote, status, onClose, onConfirm }: { quote: 
   return <Modal onClose={onClose} label={t("protection.label")}>
     {status === "confirmed" ? <><div className="modal-icon green"><LockKeyhole size={24} /></div><span className="eyebrow">{t("protection.confirmedEyebrow")}</span><h2>{t("protection.confirmedTitle")}</h2><p>{t("protection.confirmedText")}</p><button className="primary-button wide" onClick={onClose}>{t("protection.back")}</button></> : <>
       <div className="modal-icon yellow"><LockKeyhole size={24} /></div><span className="eyebrow">{t("protection.eyebrow")}</span><h2>{t("protection.title")}</h2><p>{t("protection.description")}</p>
-      <div className="purchase-summary"><div><small>{t("protection.area")}</small><strong>{t("protection.pixels", { width: quote.width, height: quote.height, count: quote.pixelCount })}</strong></div><div><small>{t("protection.duration")}</small><strong>{t("protection.days")}</strong></div><div><small>{t("protection.coordinate")}</small><strong>{quote.originX} · {quote.originY}</strong></div><div className="price"><small>{t("protection.total")}</small><strong>{quote.priceCredits} créditos</strong></div></div>
+      <div className="purchase-summary"><div><small>{t("protection.area")}</small><strong>{t("protection.pixels", { width: quote.width, height: quote.height, count: quote.pixelCount })}</strong></div><div><small>{t("protection.duration")}</small><strong>{t("protection.days")}</strong></div><div><small>{t("protection.coordinate")}</small><strong>{quote.originX} · {quote.originY}</strong></div><div className="price"><small>{t("protection.total")}</small><strong>{t("protection.credits", { count: quote.priceCredits })}</strong></div></div>
       {status === "error" && <div className="inline-error">{t("protection.error")}</div>}
       <button className="primary-button wide" onClick={onConfirm} disabled={status === "pending"}>{status === "pending" ? t("protection.processing") : t("protection.confirm")}</button>
     </>}

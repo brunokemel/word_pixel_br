@@ -41,3 +41,10 @@
 - O contrato novo exige `display_name` nos metadados do `signUp`, username normalizado após a sessão e perfil autoritativo completo em `GET /user`.
 - Quando a confirmação de e-mail impede sessão imediata no cadastro, o frontend guarda somente o username normalizado e o aplica em `PATCH /user` assim que a sessão confirmada é restaurada; senha e tokens nunca passam por esse armazenamento.
 - A auditoria final encontrou o e-mail apenas no modal de configurações da própria conta e nenhum log de senha, access token ou refresh token.
+- O prompt de UX exige uma única conversão de `ApiError` para estado de interface, componentes acessíveis reutilizáveis e mensagens definidas por código/status, nunca pelo texto bruto da API.
+- A documentação local do Next 16 orienta modelar erros esperados no estado da interface; error boundaries ficam reservadas a exceções de renderização e não capturam erros de event handlers assíncronos.
+- A API HTTP agora classifica 502/503/504 e respostas não JSON como indisponibilidade, preserva request ID do header, repete somente GET até duas vezes e nunca repete mutações automaticamente.
+- Estados 404 e exceções de renderização ganharam fallbacks próprios do App Router; falhas esperadas continuam contextuais para não substituir a navegação global.
+- A galeria `/dev/error-states` é renderizada apenas com `NODE_ENV=development`; no build de produção a própria rota resolve para o estado 404.
+- Convenção: todo novo código ou componente visual de erro deve ser incluído no lançador local `/dev/error-states`, com superfície recomendada e demonstração sem dependência da API.
+- Auditoria de i18n: erros, galeria, manutenção e controles do mapa agora têm pt/en/es tipados. A única área visível ainda monolíngue é o conteúdo jurídico extenso de `/sobre`; tratá-lo como tradução oficial exige revisão jurídica, não apenas tradução automática.

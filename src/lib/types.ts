@@ -100,12 +100,17 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "INTERNAL_ERROR"
   | "NETWORK_ERROR"
+  | "OFFLINE"
+  | "TIMEOUT"
+  | "CANCELED"
+  | "SERVICE_UNAVAILABLE"
+  | "PAYMENT_PROVIDER_UNAVAILABLE"
   | "CONFIGURATION_ERROR"
   | "USERNAME_TAKEN"
   | "VALIDATION_ERROR";
 
 export class ApiError extends Error {
-  constructor(public code: ApiErrorCode, message: string, public requestId?: string, public status?: number) {
+  constructor(public code: ApiErrorCode, message: string, public requestId?: string, public status?: number, public retryable = false) {
     super(message);
     this.name = "ApiError";
   }

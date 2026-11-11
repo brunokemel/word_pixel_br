@@ -7,7 +7,7 @@ import type { ReportPayload, ReportRecord } from "./reports";
 import { ApiError, type ApiErrorCode, type GridCell, type MapBounds, type PixelChange, type PixelChunk, type ProtectedArea, type ProtectionQuote, type ProtectionSelection, type RealtimeEvent, type UserProfile, type WalletBalance, type WorldPixelApi } from "./types";
 
 type SuccessEnvelope<T> = { ok: true; data: T; request_id?: string };
-type ErrorEnvelope = { ok: false; error: { code?: string; message?: string; request_id?: string } };
+type ErrorEnvelope = { ok: false; error: { code?: string; message?: string; retryable?: boolean; request_id?: string } };
 type ApiPixel = { cell_x?: number; cell_y?: number; x?: number; y?: number; chunk_x?: number; chunk_y?: number; color: number; author_id?: string; authorId?: string; version?: number; updated_at?: string; updatedAt?: string };
 type ApiUser = { id: string; username: string | null; display_name: string; avatar_url: string | null; email: string; email_confirmed_at: string | null; created_at: string; updated_at: string };
 
@@ -26,9 +26,11 @@ function authApiError(error: { message: string; status?: number }): ApiError {
   return new ApiError("UNAUTHENTICATED", error.message, undefined, error.status);
 }
 
-function apiCode(code: string | undefined): ApiErrorCode {
-  const known: ApiErrorCode[] = ["UNAUTHENTICATED", "RATE_LIMITED", "CELL_NOT_LAND", "AREA_PROTECTED", "INSUFFICIENT_CREDITS", "AREA_CONFLICT", "IDEMPOTENCY_CONFLICT", "FORBIDDEN", "NOT_FOUND", "INTERNAL_ERROR", "USERNAME_TAKEN", "VALIDATION_ERROR"];
-  return known.includes(code as ApiErrorCode) ? code as ApiErrorCode : "INTERNAL_ERROR";
+function apiCode(code: string | undefined, status?: number): ApiErrorCode {
+  const known: ApiErrorCode[] = ["UNAUTHENTICATED", "RATE_LIMITED", "CELL_NOT_LAND", "AREA_PROTECTED", "INSUFFICIENT_CREDITS", "AREA_CONFLICT", "IDEMPOTENCY_CONFLICT", "FORBIDDEN", "NOT_FOUND", "INTERNAL_ERROR", "USERNAME_TAKEN", "VALIDATION_ERROR", "SERVICE_UNAVAILABLE", "PAYMENT_PROVIDER_UNAVAILABLE"];
+  if (known.includes(code as ApiErrorCode)) return code as ApiErrorCode;
+  if ([502, 503, 504].includes(status ?? 0)) return "SERVICE_UNAVAILABLE";
+  return "INTERNAL_ERROR";
 }
 
 function toCell(pixel: ApiPixel): GridCell {
@@ -58,7 +60,7 @@ export class HttpWorldPixelApi implements WorldPixelApi {
     private readonly sessionRefresher = refreshSession,
   ) {}
 
-  private async request<T>(path: string, init: RequestInit = {}, authenticated = false, retried = false): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}, authenticated = false, retried = false, serviceRetries = 0): Promise<T> {
     if (!this.apiUrl) throw new ApiError("CONFIGURATION_ERROR", "NEXT_PUBLIC_WORLD_PIXEL_API_URL não configurada.");
     const headers = new Headers(init.headers);
     headers.set("Accept", "application/json");
@@ -77,20 +79,32 @@ export class HttpWorldPixelApi implements WorldPixelApi {
       const payload = await response.json().catch(() => null) as SuccessEnvelope<T> | ErrorEnvelope | null;
       if (!response.ok || !payload || payload.ok !== true) {
         const error = payload && payload.ok === false ? payload.error : {};
+        const requestId = error.request_id ?? response.headers.get("X-Request-Id") ?? undefined;
+        const code = apiCode(error.code, response.status);
         if (response.status === 401 && authenticated && !retried) {
           const refreshed = await this.sessionRefresher();
-          if (refreshed) return this.request<T>(path, init, authenticated, true);
+          if (refreshed) return this.request<T>(path, init, authenticated, true, serviceRetries);
         }
         if (response.status === 401 && authenticated) {
           await getSupabase()?.auth.signOut({ scope: "local" });
           window.dispatchEvent(new Event("world-pixel:unauthenticated"));
         }
-        throw new ApiError(apiCode(error.code), error.message ?? `Falha HTTP ${response.status}.`, error.request_id, response.status);
+        const isGet = !init.method || init.method === "GET";
+        if (code === "SERVICE_UNAVAILABLE" && isGet && serviceRetries < 2) {
+          await new Promise((resolve) => window.setTimeout(resolve, 250 * (serviceRetries + 1) + Math.floor(Math.random() * 100)));
+          return this.request<T>(path, init, authenticated, retried, serviceRetries + 1);
+        }
+        throw new ApiError(code, "Falha na solicitação.", requestId, response.status, Boolean(error.retryable) || code === "SERVICE_UNAVAILABLE");
       }
       return payload.data;
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      throw new ApiError("NETWORK_ERROR", error instanceof DOMException && error.name === "AbortError" ? "A API demorou para responder." : "Não foi possível conectar à API.");
+      if (error instanceof DOMException && error.name === "AbortError") {
+        if (init.signal?.aborted) throw new ApiError("CANCELED", "Operação cancelada.");
+        throw new ApiError("TIMEOUT", "Tempo limite excedido.", undefined, 408, true);
+      }
+      if (typeof navigator !== "undefined" && !navigator.onLine) throw new ApiError("OFFLINE", "Sem conexão.", undefined, 0, true);
+      throw new ApiError("NETWORK_ERROR", "Não foi possível conectar à API.", undefined, 0, true);
     } finally {
       window.clearTimeout(timeout);
     }

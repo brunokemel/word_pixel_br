@@ -10,6 +10,8 @@ import { ApiError, type GridCell, type ProtectedArea, type ProtectionQuote, type
 import { MapBoard } from "./map-board";
 import { CellCard, Header, HelpModal, LoginModal, ProfileModal, ProtectionModal, ReportModal, ResetPasswordModal, ToolDock } from "./ui";
 import { type TranslationKey, useI18n } from "@/lib/i18n";
+import { toErrorUi, type ErrorUiState } from "@/lib/error-ux";
+import { ActionError, ErrorBanner, PaymentErrorPanel } from "./error-ui";
 
 interface Toast { id: string; message: string; tone: "success" | "error" | "info"; }
 
@@ -38,6 +40,8 @@ export function WorldPixelApp() {
   const [reportError, setReportError] = useState<string | null>(null);
   const [connected, setConnected] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [actionError, setActionError] = useState<ErrorUiState | null>(null);
+  const [serviceError, setServiceError] = useState<ErrorUiState | null>(null);
   const paintQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const lastPaintRequestRef = useRef(0);
   const reportSubmittingRef = useRef(false);
@@ -50,9 +54,16 @@ export function WorldPixelApp() {
 
   const errorMessage = useCallback((error: unknown, fallback: TranslationKey) => {
     if (!(error instanceof ApiError)) return t(fallback);
-    const message = t(`error.${error.code}` as TranslationKey);
-    return error.requestId ? `${message} (ID: ${error.requestId})` : message;
+    return t(toErrorUi(error).messageKey);
   }, [t]);
+
+  const presentError = useCallback((error: unknown) => {
+    const ui = toErrorUi(error);
+    if (ui.surface === "silent") return ui;
+    if (ui.surface === "banner") setServiceError(ui);
+    else setActionError(ui);
+    return ui;
+  }, []);
 
   const enqueuePaint = useCallback((change: Parameters<typeof worldPixelApi.paintPixel>[0]) => {
     const execute = async () => {
@@ -102,10 +113,18 @@ export function WorldPixelApp() {
       if (session) window.setTimeout(() => void refreshPrivateState(), 0);
       else { setProfile(null); setBalance(0); setProfileOpen(false); setAuthReady(true); }
     });
-    const handleUnauthenticated = () => { setProfile(null); setBalance(0); setProfileOpen(false); setLoginOpen(true); setAuthReady(true); };
+    const handleUnauthenticated = () => { setProfile(null); setBalance(0); setProfileOpen(false); setActionError(toErrorUi(new ApiError("UNAUTHENTICATED", "expired", undefined, 401))); setLoginOpen(true); setAuthReady(true); };
     window.addEventListener("world-pixel:unauthenticated", handleUnauthenticated);
     return () => { active = false; subscription?.data.subscription.unsubscribe(); window.removeEventListener("world-pixel:unauthenticated", handleUnauthenticated); };
   }, [refreshPrivateState]);
+
+  useEffect(() => {
+    const offline = () => setServiceError(toErrorUi(new ApiError("OFFLINE", "offline", undefined, 0, true)));
+    const online = () => setServiceError((current) => current?.code === "OFFLINE" ? null : current);
+    window.addEventListener("offline", offline); window.addEventListener("online", online);
+    if (!navigator.onLine) offline();
+    return () => { window.removeEventListener("offline", offline); window.removeEventListener("online", online); };
+  }, []);
 
   const saveProfile = useCallback(async (input: { username: string; displayName: string }) => {
     if (profileSaving) return;
@@ -161,17 +180,18 @@ export function WorldPixelApp() {
       });
       const rejected = results.find((result) => result.status === "rejected");
       const error = rejected?.status === "rejected" ? rejected.reason : null;
+      presentError(error);
       toast(errorMessage(error, "toast.paintFailed"), "error");
     }
-  }, [cells, color, enqueuePaint, errorMessage, mergeCells, profile, t, toast]);
+  }, [cells, color, enqueuePaint, errorMessage, mergeCells, presentError, profile, t, toast]);
 
   const handleProtect = useCallback(async (selection: ProtectionSelection) => {
     if (!profile) { setLoginOpen(true); toast(t("toast.loginToProtect"), "info"); return; }
     try {
       const nextQuote = await worldPixelApi.quoteProtection(selection);
       setQuote(nextQuote); setPurchaseStatus("review");
-    } catch (error) { toast(errorMessage(error, "toast.areaUnavailable"), "error"); }
-  }, [errorMessage, profile, t, toast]);
+    } catch (error) { presentError(error); toast(errorMessage(error, "toast.areaUnavailable"), "error"); }
+  }, [errorMessage, presentError, profile, t, toast]);
 
   const openReport = useCallback((cell: GridCell) => {
     if (!profile) {
@@ -199,7 +219,7 @@ export function WorldPixelApp() {
       setReportCell(null);
       toast(t("toast.reportSent"), "success");
     } catch (error) {
-      if (error instanceof ApiError && error.requestId) console.error("Report request failed", { requestId: error.requestId });
+      presentError(error);
       if (error instanceof ApiError && error.status === 400) setReportError(t("report.error.validation"));
       else if (error instanceof ApiError && error.status === 401) setReportError(t("report.error.expired"));
       else if (error instanceof ApiError && error.status === 429) setReportError(t("report.error.rateLimited"));
@@ -208,7 +228,7 @@ export function WorldPixelApp() {
       reportSubmittingRef.current = false;
       setReportSubmitting(false);
     }
-  }, [profile, reportCell, t, toast]);
+  }, [presentError, profile, reportCell, t, toast]);
 
   const confirmProtection = useCallback(async () => {
     if (!quote) return;
@@ -221,8 +241,8 @@ export function WorldPixelApp() {
       setBalance((current) => current - quote.priceCredits);
       setPurchaseStatus("confirmed");
       toast(t("toast.areaProtected"), "success");
-    } catch (error) { setPurchaseStatus("error"); toast(errorMessage(error, "protection.error"), "error"); }
-  }, [errorMessage, quote, t, toast]);
+    } catch (error) { setPurchaseStatus("error"); presentError(error); toast(errorMessage(error, "protection.error"), "error"); }
+  }, [errorMessage, presentError, quote, t, toast]);
 
   const selectionPreview = useMemo<ProtectedArea[]>(() => {
     if (mode !== "protect" || !protectionDraft) return protectedAreas;
@@ -232,12 +252,14 @@ export function WorldPixelApp() {
   return (
     <main className="app-shell">
       <Header profile={profile} balance={balance} authReady={authReady} onLogin={() => setLoginOpen(true)} onProfile={() => { setProfileError(null); setProfileOpen(true); }} onLogout={() => void worldPixelApi.signOut().then(() => { setProfile(null); toast(t("toast.loggedOut")); })} onHelp={() => setHelpOpen(true)} />
+      {serviceError && <ErrorBanner error={serviceError} onRetry={() => { setServiceError(null); void refreshPrivateState(); }} />}
       <MapBoard mode={mode} cells={cells} protectedAreas={selectionPreview} selectedCell={selectedCell} brushColor={color} canPaint={Boolean(profile)} onCellSelect={setSelectedCell} onPaint={handlePaint} onProtectPreview={setProtectionDraft} onProtectSelect={handleProtect} onChunksLoaded={mergeCells} onConnectionChange={setConnected} />
       <div className="hero-copy"><span className="eyebrow">{t("hero.eyebrow")}</span><h1>{t("hero.titleStart")}<br /><em>{t("hero.titleEnd")}</em></h1><p>{t("hero.description")}</p></div>
       <ToolDock mode={mode} onMode={(nextMode) => { setMode(nextMode); if (nextMode !== "protect") setProtectionDraft(null); }} color={color} onColor={setColor} />
       {selectedCell && <CellCard cell={selectedCell} onClose={() => setSelectedCell(null)} onReport={() => openReport(selectedCell)} />}
       {!connected && <div className="connection-warning"><CloudOff size={17} /> {t("connection.reconnecting")}</div>}
       {profileLoadFailed && <div className="profile-retry" role="alert"><span>{t("profile.error.load")}</span><button onClick={() => void refreshPrivateState()}>{t("profile.retry")}</button></div>}
+      {actionError && <div className="map-action-error">{actionError.surface === "payment" ? <PaymentErrorPanel error={actionError} balance={balance} cost={quote?.priceCredits} onBuyCredits={() => toast(t("credits.comingSoon"), "info")} /> : <ActionError error={actionError} onRetry={actionError.retryable ? () => setActionError(null) : undefined} />}<button type="button" className="error-dismiss" onClick={() => setActionError(null)} aria-label={t("errorUi.close")}>×</button></div>}
       <div className="map-legend"><span><i className="free" /> {t("legend.free")}</span><span><LockKeyhole size={13} /> {t("legend.protected")}</span></div>
       <div className="toast-region" aria-live="polite">{toasts.map((item) => <div key={item.id} className={`toast ${item.tone}`}>{item.message}</div>)}</div>
       {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} onSignIn={(email, password) => worldPixelApi.signInWithPassword(email, password)} onSignUp={(email, password, displayName, username) => worldPixelApi.signUpWithPassword(email, password, displayName, username)} onRequestPasswordReset={(email) => worldPixelApi.requestPasswordReset(email)} />}

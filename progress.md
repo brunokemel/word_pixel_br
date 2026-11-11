@@ -63,3 +63,16 @@
 - Iniciada a Phase 15 para alinhar o frontend ao contrato final de Supabase Auth e identidade em `/user`.
 - Phase 15 concluída: cadastro com metadado `display_name`, username validado/aplicado em `/user`, perfil completo, e-mail privado, recuperação e limpeza de sessão em 401 implementados.
 - Validação final passou: lint, typecheck, 37 testes, build de produção, `git diff --check` e auditoria de logs/segredos.
+- Iniciada a Phase 16 a partir de `Prompts/PROMPT_FRONT_ERROR_UX.md`.
+- Phase 16 concluída: normalizador central, cinco componentes acessíveis, banners/alertas/painel de pagamento, 404/error boundary e retries conservadores implementados.
+- Validação final passou: lint, typecheck, 58 testes, build de produção e `git diff --check`.
+- Phase 17 concluída: galeria interativa e responsiva criada em `/dev/error-states`, limitada ao ambiente de desenvolvimento.
+- Validação da galeria passou: lint, typecheck, 58 testes e build de produção.
+- Iniciada a Phase 18 para transformar a galeria em um lançador interativo de estados de erro.
+- Phase 18 concluída: seletor de código/apresentação, botão de abertura, preview isolado e fechamento implementados; convenção persistida em `AGENTS.md`.
+- Validação final passou: lint, typecheck e 58 testes.
+- UX de erros, simulador local, manutenção, links, acessibilidade e créditos migrados para catálogos tipados pt/en/es.
+- Regra de internacionalização obrigatória adicionada ao `AGENTS.md`; lint, typecheck, 58 testes e build passaram.
+- Auditoria geral identificou `/sobre` como única pendência: conteúdo jurídico em português precisa de tradução inglesa e espanhola revisada antes de ser chamado de oficial.
+- Iniciada a Phase 19 para garantir cobertura oficial em português, inglês e espanhol de toda interface visível.
+- Iniciada a Phase 17 para criar uma galeria local isolada dos estados de erro.

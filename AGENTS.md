@@ -7,3 +7,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Galeria local de erros
+
+Ao criar um novo código, componente ou apresentação visual de erro, adicione também uma demonstração selecionável em `/dev/error-states`. A galeria deve continuar restrita a `NODE_ENV=development` e não pode depender de chamadas reais à API.
+
+## Internacionalização obrigatória
+
+Todo texto novo visível na interface, incluindo rótulos, acessibilidade, mensagens, páginas auxiliares e ferramentas locais, deve ser adicionado simultaneamente aos catálogos `pt`, `en` e `es`. Não adicione texto visível fixo diretamente em JSX. Antes de concluir uma mudança, execute a auditoria de textos e os testes de completude do catálogo.

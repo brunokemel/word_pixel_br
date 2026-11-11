@@ -54,6 +54,13 @@ describe("HttpWorldPixelApi.submitReport", () => {
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code, status, requestId: `request-${status}` });
   });
+
+  it("não repete mutação quando o serviço está indisponível", async () => {
+    vi.mocked(fetch).mockResolvedValue(response(503, { ok: false, error: { code: "SERVICE_UNAVAILABLE", retryable: true, message: "raw" } }));
+    const api = new HttpWorldPixelApi("https://api.example.test", async () => session, async () => null);
+    await expect(api.submitReport(payload)).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE", retryable: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("perfil autenticado", () => {
@@ -90,5 +97,12 @@ describe("perfil autenticado", () => {
 
     vi.mocked(fetch).mockResolvedValue(response(409, { ok: false, error: { code: "USERNAME_TAKEN", message: "taken" } }));
     await expect(api.updateProfile({ username: "usuario_valido" })).rejects.toMatchObject({ code: "USERNAME_TAKEN", status: 409 });
+  });
+
+  it("repete GET no máximo duas vezes em gateway indisponível e preserva request id", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("gateway", { status: 502, headers: { "X-Request-Id": "gateway-id" } }));
+    const api = new HttpWorldPixelApi("https://api.example.test", async () => session, async () => null);
+    await expect(api.getWallet()).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE", requestId: "gateway-id" });
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 });

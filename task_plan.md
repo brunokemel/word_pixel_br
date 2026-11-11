@@ -4,10 +4,10 @@
 Construir no repositório atual um front-end funcional, responsivo e validado para o mapa colaborativo World Pixel, seguindo `prompt-front.txt`.
 
 ## Next Step
-Configurar e validar o fluxo integrado com um projeto Supabase e a API real.
+Obter ou aprovar traduções jurídicas revisadas para o conteúdo integral da página `/sobre` em inglês e espanhol.
 
 ## Current Phase
-Concluído no código; aguardando configuração externa e teste integrado.
+Phase 19 parcialmente concluída: interface funcional coberta; conteúdo jurídico de `/sobre` aguarda tradução revisada.
 
 ### Phase 1 — Fundação e arquitetura
 **Status:** complete
@@ -116,6 +116,36 @@ Concluído no código; aguardando configuração externa e teste integrado.
 - [x] Validar username e tratar 409, 401 e 400 conforme o contrato
 - [x] Restringir e-mail às configurações da própria conta e revisar vazamento de segredos em logs
 - [x] Atualizar testes/documentação e executar lint, typecheck, testes e build
+
+### Phase 16 — UX completa de erros
+**Status:** complete
+- [x] Centralizar normalização de erros HTTP, rede, offline, timeout e cancelamento
+- [x] Criar componentes acessíveis de erro inline, ação, banner, página e pagamento
+- [x] Integrar sessão expirada, indisponibilidade parcial e erros contextuais sem perder estado
+- [x] Cobrir matriz de códigos, retries limitados e proteção contra duplicidade
+- [x] Executar lint, typecheck, testes e build
+
+### Phase 17 — Galeria local de erros
+**Status:** complete
+- [x] Criar rota `/dev/error-states` disponível apenas em desenvolvimento
+- [x] Exibir componentes e códigos de erro de forma interativa e responsiva
+- [x] Executar lint, typecheck, testes e build
+
+### Phase 18 — Lançador interativo de erros
+**Status:** complete
+- [x] Permitir selecionar código e apresentação antes de abrir a demonstração
+- [x] Abrir o erro escolhido isoladamente e permitir fechar/trocar
+- [x] Documentar a galeria como padrão para novos estados de erro
+- [x] Executar lint, typecheck e testes
+
+### Phase 19 — Cobertura integral pt/en/es
+**Status:** in_progress
+- [x] Migrar mensagens, títulos e ações da UX de erros para chaves tipadas
+- [x] Traduzir a galeria local e novos fallbacks de página
+- [x] Auditar todo o frontend e identificar textos visíveis fixos restantes
+- [x] Registrar a internacionalização obrigatória como regra do projeto
+- [x] Executar lint, typecheck, testes e build
+- [ ] Traduzir e revisar juridicamente o conteúdo integral de `/sobre`
 
 ## Decisions Made
 | Decision | Rationale |
